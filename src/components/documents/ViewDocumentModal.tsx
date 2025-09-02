@@ -64,10 +64,10 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
   const [isExporting, setIsExporting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
 
+  if (!isOpen || !document) return null;
+
   const DocumentTypeIcon = documentTypeIcons[document.type as keyof typeof documentTypeIcons] || FileText;
   const documentTypeName = documentTypeNames[document.type as keyof typeof documentTypeNames] || 'Документ';
-
-  if (!isOpen || !document) return null;
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('uk-UA', { 
@@ -106,7 +106,7 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
     }
   };
 
-  const handleExport = useCallback(async (format: string) => {
+  const handleExport = async (format: string) => {
     setIsExporting(true);
     try {
       // TODO: Інтеграція з API експорту
@@ -130,9 +130,9 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
     } finally {
       setIsExporting(false);
     }
-  }, [document]);
+  };
 
-  const handlePrint = useCallback(async () => {
+  const handlePrint = async () => {
     setIsPrinting(true);
     try {
       // TODO: Інтеграція з системою друку
@@ -180,12 +180,12 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
     } finally {
       setIsPrinting(false);
     }
-  }, [document, documentTypeName]);
+  };
 
-  const handleShare = useCallback(() => {
+  const handleShare = () => {
     // TODO: Відкрити модальне вікно поширення
     alert('Функція поширення буде реалізована в наступному кроці');
-  }, []);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
