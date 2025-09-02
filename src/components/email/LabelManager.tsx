@@ -16,7 +16,8 @@ interface LabelManagerProps {
   hideButton?: boolean;
 }
 
-export default function LabelManager({ labels, onLabelUpdate }: LabelManagerProps) {
+export default function LabelManager({ labels, onLabelUpdate, hideButton = false }: LabelManagerProps) {
+
   const [isOpen, setIsOpen] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formData, setFormData] = useState({
