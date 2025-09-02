@@ -85,7 +85,7 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
   };
 
   return (
-    <div className="flex items-center gap-2 mb-4">
+    <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
       {/* Категорія */}
       <div className="relative">
         <button
@@ -100,7 +100,7 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
         </button>
 
         {showCategoryMenu && (
-          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
+          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] min-w-48">
             <div className="p-2">
               <div className="text-xs font-medium text-gray-500 mb-2 px-2">Змінити категорію</div>
               {categories.map((category) => (
@@ -137,7 +137,7 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
         </button>
 
         {showPriorityMenu && (
-          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-40">
+          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] min-w-40">
             <div className="p-2">
               <div className="text-xs font-medium text-gray-500 mb-2 px-2">Змінити пріоритет</div>
               {priorities.map((priority) => (
@@ -171,7 +171,7 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
         </button>
 
         {showLabelMenu && (
-          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-64">
+          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] min-w-64">
             <div className="p-3">
               <div className="text-xs font-medium text-gray-500 mb-3">Управління мітками</div>
               
@@ -214,7 +214,7 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
       {/* Закриття меню при кліку поза ними */}
       {(showCategoryMenu || showPriorityMenu || showLabelMenu) && (
         <div
-          className="fixed inset-0 z-0"
+          className="fixed inset-0 z-[9998]"
           onClick={() => {
             setShowCategoryMenu(false);
             setShowPriorityMenu(false);

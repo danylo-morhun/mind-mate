@@ -18,7 +18,6 @@ import {
 import { Email, EmailTemplate } from '@/lib/types';
 import { useEmailTemplates } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
-import LabelManager from './LabelManager';
 import EmailQuickActions from './EmailQuickActions';
 
 interface EmailViewProps {
@@ -411,20 +410,13 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
           </div>
         </div>
         
-        {/* Управління мітками */}
-        <div className="flex items-center justify-between">
-          <EmailQuickActions
-            email={displayEmail}
-            onEmailUpdate={onEmailUpdate}
-            labels={[]} // TODO: передати реальні мітки з EmailList
-            onLabelUpdate={() => {}} // TODO: оновити мітки
-          />
-          
-          <LabelManager
-            labels={[]} // TODO: передати реальні мітки з EmailList
-            onLabelUpdate={() => {}} // TODO: оновити мітки
-          />
-        </div>
+        {/* Швидкі дії для листа */}
+        <EmailQuickActions
+          email={displayEmail}
+          onEmailUpdate={onEmailUpdate}
+          labels={[]} // TODO: передати реальні мітки з EmailList
+          onLabelUpdate={() => {}} // TODO: оновити мітки
+        />
       </div>
 
       {/* Текст листа - скролиться окремо */}
