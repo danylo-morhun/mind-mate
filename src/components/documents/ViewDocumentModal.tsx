@@ -183,7 +183,7 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
   }, [document, documentTypeName]);
 
   const handleShare = useCallback(() => {
-    // TODO: Інтеграція з системою поширення
+    // TODO: Відкрити модальне вікно поширення
     alert('Функція поширення буде реалізована в наступному кроці');
   }, []);
 

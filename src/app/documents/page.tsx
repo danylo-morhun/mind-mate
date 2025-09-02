@@ -23,6 +23,7 @@ import DocumentList from '@/components/documents/DocumentList';
 import CreateDocumentModal from '@/components/documents/CreateDocumentModal';
 import EditDocumentModal from '@/components/documents/EditDocumentModal';
 import ViewDocumentModal from '@/components/documents/ViewDocumentModal';
+import ShareDocumentModal from '@/components/documents/ShareDocumentModal';
 
 export default function DocumentsPage() {
   const { 
@@ -47,6 +48,8 @@ export default function DocumentsPage() {
   const [selectedDocumentForEdit, setSelectedDocumentForEdit] = useState<any>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedDocumentForView, setSelectedDocumentForView] = useState<any>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [selectedDocumentForShare, setSelectedDocumentForShare] = useState<any>(null);
 
   const categories = [
     { id: 'all', name: 'Всі категорії', icon: FolderOpen, color: 'text-gray-600' },
@@ -140,8 +143,8 @@ export default function DocumentsPage() {
   };
 
   const handleDocumentShare = (document: any) => {
-    // TODO: Відкрити модальне вікно налаштування доступу
-    alert('Функція поділитися буде реалізована в наступному кроці');
+    setSelectedDocumentForShare(document);
+    setIsShareModalOpen(true);
   };
 
   const handleDocumentDownload = (document: any) => {
@@ -303,6 +306,16 @@ export default function DocumentsPage() {
         }}
         onEdit={handleViewToEdit}
         document={selectedDocumentForView}
+      />
+
+      {/* Модальне вікно поширення документа */}
+      <ShareDocumentModal
+        isOpen={isShareModalOpen}
+        onClose={() => {
+          setIsShareModalOpen(false);
+          setSelectedDocumentForShare(null);
+        }}
+        document={selectedDocumentForShare}
       />
     </div>
   );
