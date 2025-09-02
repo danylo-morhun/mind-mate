@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { MoreVertical, Tag, Settings, Filter, Download, Archive, Trash2 } from 'lucide-react';
-import LabelManager from './LabelManager';
+import { MoreVertical, Tag, Filter, Download, Archive, Trash2 } from 'lucide-react';
 
 interface EmailListMenuProps {
   labels: any[];
@@ -93,31 +92,159 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
         </>
       )}
 
-      {/* LabelManager модальне вікно */}
+      {/* Модальне вікно управління мітками */}
       {showLabelManager && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl relative">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">
                 Управління мітками
               </h3>
               <button
                 onClick={() => setShowLabelManager(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 text-2xl"
               >
                 ✕
               </button>
             </div>
             
-            <LabelManager
-              labels={labels}
-              onLabelUpdate={() => {
-                onLabelUpdate();
-                setShowLabelManager(false);
-              }}
-              hideButton={true}
-              hideModal={true}
-            />
+            {/* Форма створення/редагування мітки */}
+            <div className="mb-8">
+              <h4 className="text-lg font-medium text-gray-900 mb-4">
+                Створити нову мітку
+              </h4>
+              
+              <form className="space-y-4">
+                {/* Назва мітки */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Назва мітки
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Введіть назву мітки"
+                  />
+                </div>
+
+                {/* Колір фону */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Колір фону
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      defaultValue="#4285f4"
+                      className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      defaultValue="#4285f4"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="#4285f4"
+                    />
+                  </div>
+                </div>
+
+                {/* Колір тексту */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Колір тексту
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      defaultValue="#ffffff"
+                      className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      defaultValue="#ffffff"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="#ffffff"
+                    />
+                  </div>
+                </div>
+
+                {/* Видимість */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Видимість
+                  </label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="labelShow">Показати в списку</option>
+                    <option value="labelHide">Приховати зі списку</option>
+                  </select>
+                </div>
+
+                {/* Кнопки */}
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Створити мітку
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLabelManager(false)}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                  >
+                    Скасувати
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Список існуючих міток */}
+            <div>
+              <h4 className="text-lg font-medium text-gray-900 mb-4">
+                Існуючі мітки
+              </h4>
+              
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {labels.filter(label => !label.name.startsWith('CATEGORY_') && !label.name.startsWith('INBOX')).map((label) => (
+                  <div key={label.id} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-4 h-4 rounded"
+                        style={{ backgroundColor: label.backgroundColor || '#4285f4' }}
+                      />
+                      <span className="text-sm font-medium text-gray-700">{label.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Редагувати"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Видалити"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                
+                {labels.filter(label => !label.name.startsWith('CATEGORY_') && !label.name.startsWith('INBOX')).length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    <p>Немає створених міток</p>
+                    <p className="text-sm">Створіть першу мітку вище</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
