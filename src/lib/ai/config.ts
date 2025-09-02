@@ -53,15 +53,15 @@ export const LANGUAGES = {
 
 // Валідація параметрів
 export function validateReplyType(replyType: string): boolean {
-  return Object.values(REPLY_TYPES).includes(replyType as any);
+  return Object.values(REPLY_TYPES).includes(replyType as keyof typeof REPLY_TYPES);
 }
 
 export function validateReplyTone(replyTone: string): boolean {
-  return Object.values(REPLY_TONES).includes(replyTone as any);
+  return Object.values(REPLY_TONES).includes(replyTone as keyof typeof REPLY_TONES);
 }
 
 export function validateLanguage(language: string): boolean {
-  return Object.values(LANGUAGES).includes(language as any);
+  return Object.values(LANGUAGES).includes(language as keyof typeof LANGUAGES);
 }
 
 // Отримання описів для UI

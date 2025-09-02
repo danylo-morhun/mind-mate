@@ -152,7 +152,7 @@ Mind Mate AI Assistant
 ```bash
 # Google AI API (майбутнє)
 GOOGLE_AI_API_KEY=your_api_key
-GOOGLE_AI_MODEL=gemini-pro
+GOOGLE_AI_MODEL=gemini-1.5-flash
 
 # Налаштування AI
 AI_MAX_TOKENS=1000

@@ -10,7 +10,7 @@ export interface GeminiConfig {
 
 export class GeminiClient {
   private genAI: GoogleGenerativeAI;
-  private model: any;
+  private model: any; // @ts-ignore - Google AI types
   private config: GeminiConfig;
 
   constructor(config: GeminiConfig) {
@@ -45,7 +45,7 @@ export class GeminiClient {
 
   async generateReplyWithSafety(prompt: string): Promise<{
     text: string;
-    safetyRatings: any[];
+    safetyRatings: any[]; // @ts-ignore - Google AI types
     blocked: boolean;
   }> {
     try {
@@ -88,7 +88,7 @@ export function getGeminiClient(): GeminiClient {
 
     geminiClientInstance = new GeminiClient({
       apiKey,
-      model: process.env.GOOGLE_AI_MODEL || 'gemini-pro',
+      model: process.env.GOOGLE_AI_MODEL || 'gemini-1.5-flash',
       maxTokens: parseInt(process.env.AI_MAX_TOKENS || '1000'),
       temperature: parseFloat(process.env.AI_TEMPERATURE || '0.7'),
       topP: parseFloat(process.env.AI_TOP_P || '0.9'),

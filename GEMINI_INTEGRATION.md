@@ -35,7 +35,7 @@ Frontend → API Route → Prompt Builder → Gemini Client → Gemini API → R
 ```bash
 # .env.local
 GOOGLE_AI_API_KEY=your_gemini_api_key_here
-GOOGLE_AI_MODEL=gemini-pro
+GOOGLE_AI_MODEL=gemini-1.5-flash
 AI_MAX_TOKENS=1000
 AI_TEMPERATURE=0.7
 AI_TOP_P=0.9
@@ -128,7 +128,7 @@ safetySettings: {
 try {
   // Спробуємо Gemini API
   aiReply = await geminiClient.generateReply(prompt);
-  modelUsed = 'gemini-pro';
+        modelUsed = 'gemini-1.5-flash';
 } catch (geminiError) {
   // Fallback до mock AI
   aiReply = await generateMockAIReply(params);

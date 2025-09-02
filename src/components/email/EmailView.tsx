@@ -37,6 +37,24 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
   const [replyTone, setReplyTone] = useState<string>('professional');
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [replyLanguage, setReplyLanguage] = useState<string>('uk');
+  const [isAIReplyCollapsed, setIsAIReplyCollapsed] = useState(() => {
+    // Завантажуємо збережений стан з localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ai-reply-collapsed');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+
+  // Функція для зміни стану згортання з збереженням
+  const toggleAIReplyCollapsed = () => {
+    const newState = !isAIReplyCollapsed;
+    setIsAIReplyCollapsed(newState);
+    // Зберігаємо в localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ai-reply-collapsed', JSON.stringify(newState));
+    }
+  };
 
   // Завантаження повного листа при виборі
   useEffect(() => {
@@ -384,93 +402,122 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
           {/* AI Відповідь - основна функція */}
           <div className="email-reply-section">
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700">AI Відповідь:</label>
-              <div className="flex items-center text-xs text-gray-500">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                AI готовий до роботи
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">AI Відповідь:</label>
+                <div className="flex items-center text-xs text-gray-500">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  AI готовий до роботи
+                </div>
               </div>
+              <button
+                onClick={toggleAIReplyCollapsed}
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                title={isAIReplyCollapsed ? "Розгорнути AI відповідь" : "Згорнути AI відповідь"}
+              >
+                {isAIReplyCollapsed ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                )}
+              </button>
             </div>
-            <div className="space-y-3">
-              {/* Тип відповіді для університету */}
-              <div className="flex items-center gap-4">
-                <select
-                  value={replyType}
-                  onChange={(e) => setReplyType(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="academic">🎓 Академічна</option>
-                  <option value="administrative">📋 Адміністративна</option>
-                  <option value="student_support">👨‍🎓 Підтримка студентів</option>
-                  <option value="colleague">🤝 Колегам</option>
-                  <option value="urgent">⚡ Термінова</option>
-                  <option value="confirmation">✅ Підтвердження</option>
-                </select>
-                
-                <select
-                  value={replyTone}
-                  onChange={(e) => setReplyTone(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="professional">🎯 Професійний</option>
-                  <option value="supportive">💪 Підтримуючий</option>
-                  <option value="encouraging">🌟 Заохочувальний</option>
-                  <option value="instructive">📚 Інструктивний</option>
-                  <option value="collaborative">🤝 Колаборативний</option>
-                </select>
-              </div>
-              
-              {/* Шаблон (опціонально) */}
-              <div className="flex items-center gap-4">
-                <select
-                  value={selectedTemplate}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">🎯 Без шаблону (AI генерує все)</option>
-                  {emailTemplates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      📋 {template.name} (база для AI)
-                    </option>
-                  ))}
-                </select>
-                
+            {isAIReplyCollapsed ? (
+              // Згорнутий стан - показуємо тільки кнопку AI відповіді
+              <div className="ai-reply-collapsible collapsed flex items-center justify-center py-4">
                 <button
-                  onClick={handleGenerateReply}
-                  disabled={isGeneratingReply}
-                  className="email-control-button email-control-button-primary disabled:opacity-50 whitespace-nowrap px-6"
+                  onClick={toggleAIReplyCollapsed}
+                  className="email-control-button email-control-button-primary px-6 py-3"
                 >
-                  {isGeneratingReply ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Генерація...
-                    </>
-                  ) : (
-                    '🎯 AI Відповідь'
-                  )}
+                  🎯 Розгорнути AI відповідь
                 </button>
               </div>
-              
-              {/* Кастомні інструкції та мова */}
-              <div className="flex items-center gap-4">
-                <input
-                  type="text"
-                  value={customInstructions}
-                  onChange={(e) => setCustomInstructions(e.target.value)}
-                  placeholder="Спеціальні вимоги для AI (наприклад: 'включити посилання на документи', 'додати контакти')"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+            ) : (
+              <div className="ai-reply-collapsible expanded space-y-3">
+                {/* Тип відповіді для університету */}
+                <div className="flex items-center gap-4">
+                  <select
+                    value={replyType}
+                    onChange={(e) => setReplyType(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="academic">🎓 Академічна</option>
+                    <option value="administrative">📋 Адміністративна</option>
+                    <option value="student_support">👨‍🎓 Підтримка студентів</option>
+                    <option value="colleague">🤝 Колегам</option>
+                    <option value="urgent">⚡ Термінова</option>
+                    <option value="confirmation">✅ Підтвердження</option>
+                  </select>
+                  
+                  <select
+                    value={replyTone}
+                    onChange={(e) => setReplyTone(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="professional">🎯 Професійний</option>
+                    <option value="supportive">💪 Підтримуючий</option>
+                    <option value="encouraging">🌟 Заохочувальний</option>
+                    <option value="instructive">📚 Інструктивний</option>
+                    <option value="collaborative">🤝 Колаборативний</option>
+                  </select>
+                </div>
                 
-                <select
-                  value={replyLanguage}
-                  onChange={(e) => setReplyLanguage(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="uk">🇺🇦 Українська</option>
-                  <option value="en">🇺🇸 English</option>
-                  <option value="de">🇩🇪 Deutsch</option>
-                </select>
+                {/* Шаблон (опціонально) */}
+                <div className="flex items-center gap-4">
+                  <select
+                    value={selectedTemplate}
+                    onChange={(e) => handleTemplateChange(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">🎯 Без шаблону (AI генерує все)</option>
+                    {emailTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        📋 {template.name} (база для AI)
+                      </option>
+                    ))}
+                  </select>
+                  
+                  <button
+                    onClick={handleGenerateReply}
+                    disabled={isGeneratingReply}
+                    className="email-control-button email-control-button-primary disabled:opacity-50 whitespace-nowrap px-6"
+                  >
+                    {isGeneratingReply ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Генерація...
+                      </>
+                    ) : (
+                      '🎯 AI Відповідь'
+                    )}
+                  </button>
+                </div>
+                
+                {/* Кастомні інструкції та мова */}
+                <div className="flex items-center gap-4">
+                  <input
+                    type="text"
+                    value={customInstructions}
+                    onChange={(e) => setCustomInstructions(e.target.value)}
+                    placeholder="Спеціальні вимоги для AI (наприклад: 'включити посилання на документи', 'додати контакти')"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  
+                  <select
+                    value={replyLanguage}
+                    onChange={(e) => setReplyLanguage(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="uk">🇺🇦 Українська</option>
+                    <option value="en">🇺🇸 English</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           
           {/* Текст відповіді */}

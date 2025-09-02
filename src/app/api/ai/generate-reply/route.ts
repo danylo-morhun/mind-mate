@@ -60,13 +60,16 @@ export async function POST(request: NextRequest) {
     let aiReply: string;
     let modelUsed = 'mock-ai-fallback';
     let errorMessage = null;
+    let promptContext: ReturnType<typeof buildGeminiPrompt> | null = null;
 
     try {
       // Спробуємо використати Gemini API
+      console.log('🔍 Attempting to use Gemini API...');
       const geminiClient = getGeminiClient();
+      console.log('✅ Gemini client created successfully');
       
       // Будуємо prompt для Gemini
-      const promptContext = buildGeminiPrompt({
+      promptContext = buildGeminiPrompt({
         emailContent,
         emailSubject,
         emailFrom,
@@ -76,18 +79,21 @@ export async function POST(request: NextRequest) {
         tone,
         language
       });
-
-      // Генеруємо відповідь через Gemini
-      aiReply = await geminiClient.generateReply(promptContext.fullPrompt);
-      modelUsed = 'gemini-pro';
+      console.log('📝 Prompt built successfully, length:', promptContext.fullPrompt.length);
       
-      console.log('Gemini API success - Model:', modelUsed, 'Tokens:', aiReply.length);
+      // Генеруємо відповідь через Gemini
+      console.log('🚀 Sending request to Gemini...');
+      aiReply = await geminiClient.generateReply(promptContext.fullPrompt);
+      modelUsed = 'gemini-1.5-flash';
+      
+      console.log('🎉 Gemini API success - Model:', modelUsed, 'Tokens:', aiReply.length);
       
     } catch (geminiError) {
-      console.error('Gemini API failed, falling back to mock:', geminiError);
+      console.error('❌ Gemini API failed, falling back to mock:', geminiError);
       errorMessage = `Gemini API недоступний: ${geminiError}`;
       
       // Fallback до mock AI
+      console.log('🔄 Using mock AI fallback...');
       aiReply = await generateMockAIReply({
         emailContent,
         emailSubject,
@@ -98,6 +104,7 @@ export async function POST(request: NextRequest) {
         tone,
         language
       });
+      console.log('✅ Mock AI fallback completed');
     }
 
     return NextResponse.json({

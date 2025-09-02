@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       testResponse: response,
       responseTime: `${responseTime}ms`,
       timestamp: new Date().toISOString(),
-      model: process.env.GOOGLE_AI_MODEL || 'gemini-pro'
+      model: process.env.GOOGLE_AI_MODEL || 'gemini-1.5-flash'
     });
 
   } catch (error) {
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       response: response,
       responseTime: `${responseTime}ms`,
       timestamp: new Date().toISOString(),
-      model: process.env.GOOGLE_AI_MODEL || 'gemini-pro'
+      model: process.env.GOOGLE_AI_MODEL || 'gemini-1.5-flash'
     });
 
   } catch (error) {
