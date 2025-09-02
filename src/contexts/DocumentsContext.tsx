@@ -142,7 +142,19 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       }
       
       const documents = await response.json();
-      dispatch({ type: 'SET_DOCUMENTS', payload: documents });
+      
+      // Конвертуємо рядки дат в об'єкти Date для безпеки
+      const documentsWithDates = documents.map((doc: any) => ({
+        ...doc,
+        lastModified: new Date(doc.lastModified),
+        createdDate: new Date(doc.createdDate),
+        metadata: doc.metadata ? {
+          ...doc.metadata,
+          lastAccessed: new Date(doc.metadata.lastAccessed)
+        } : undefined
+      }));
+      
+      dispatch({ type: 'SET_DOCUMENTS', payload: documentsWithDates });
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Unknown error' });
     } finally {

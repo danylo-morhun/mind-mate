@@ -97,16 +97,24 @@ export default function DocumentCard({
   };
 
   // Форматування дати
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | string) => {
+    // Конвертуємо рядок в Date якщо потрібно
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Перевіряємо чи дата валідна
+    if (isNaN(dateObj.getTime())) {
+      return 'Невідома дата';
+    }
+    
     const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    const diffInHours = (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60);
     
     if (diffInHours < 24) {
-      return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+      return dateObj.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
     } else if (diffInHours < 168) {
-      return date.toLocaleDateString('uk-UA', { weekday: 'short' });
+      return dateObj.toLocaleDateString('uk-UA', { weekday: 'short' });
     } else {
-      return date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+      return dateObj.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
     }
   };
 

@@ -180,7 +180,18 @@ export async function GET() {
     // Імітуємо затримку завантаження
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    return NextResponse.json(mockDocuments);
+    // Конвертуємо рядки дат в об'єкти Date
+    const documentsWithDates = mockDocuments.map(doc => ({
+      ...doc,
+      lastModified: new Date(doc.lastModified),
+      createdDate: new Date(doc.createdDate),
+      metadata: doc.metadata ? {
+        ...doc.metadata,
+        lastAccessed: new Date(doc.metadata.lastAccessed)
+      } : undefined
+    }));
+    
+    return NextResponse.json(documentsWithDates);
   } catch (error) {
     console.error('Error fetching documents:', error);
     return NextResponse.json(

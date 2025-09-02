@@ -179,8 +179,16 @@ function DocumentListItem({
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const formatDate = (date: Date | string) => {
+    // Конвертуємо рядок в Date якщо потрібно
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Перевіряємо чи дата валідна
+    if (isNaN(dateObj.getTime())) {
+      return 'Невідома дата';
+    }
+    
+    return dateObj.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   return (
