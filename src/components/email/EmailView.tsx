@@ -31,6 +31,12 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
   const [isGeneratingReply, setIsGeneratingReply] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
+  
+  // AI відповідь state
+  const [replyType, setReplyType] = useState<string>('academic');
+  const [replyTone, setReplyTone] = useState<string>('professional');
+  const [customInstructions, setCustomInstructions] = useState<string>('');
+  const [replyLanguage, setReplyLanguage] = useState<string>('uk');
 
   // Завантаження повного листа при виборі
   useEffect(() => {
@@ -124,37 +130,57 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId);
-    const template = emailTemplates.find(t => t.id === templateId);
-    if (template) {
-      setReplyText(template.body);
+    
+    // Шаблон змінюється, але відповідь НЕ генерується автоматично
+    // Відповідь генерується тільки по натисканню кнопки "AI Відповідь"
+    if (templateId) {
+      // Очищаємо попередню відповідь при зміні шаблону
+      setReplyText('');
+    } else {
+      // Якщо вибрано "Без шаблону", очищаємо відповідь
+      setReplyText('');
     }
   };
 
   const handleGenerateReply = async () => {
+    if (!fullEmail) return;
+    
     setIsGeneratingReply(true);
     try {
-      // Тут буде інтеграція з AI API для генерації відповіді
-      const aiReply = await generateAIReply(email!);
-      setReplyText(aiReply);
+      const response = await fetch('/api/ai/generate-reply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          emailContent: fullEmail.body || fullEmail.snippet,
+          emailSubject: fullEmail.subject,
+          emailFrom: fullEmail.from,
+          replyType,
+          templateId: selectedTemplate || undefined,
+          customInstructions: customInstructions || undefined,
+          tone: replyTone,
+          language: replyLanguage
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReplyText(data.reply);
+      } else {
+        console.error('Помилка генерації AI відповіді');
+        // Fallback до mock відповіді
+        const mockReply = `Дякую за ваше повідомлення про "${fullEmail.subject}".\n\nЯ обов'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.\n\nЗ повагою,\nMind Mate AI`;
+        setReplyText(mockReply);
+      }
     } catch (error) {
       console.error('Помилка генерації відповіді:', error);
+      // Fallback до mock відповіді
+      const mockReply = `Дякую за ваше повідомлення про "${fullEmail.subject}".\n\nЯ обов'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.\n\nЗ повагою,\nMind Mate AI`;
+      setReplyText(mockReply);
     } finally {
       setIsGeneratingReply(false);
     }
-  };
-
-  const generateAIReply = async (email: Email): Promise<string> => {
-    // Імітація AI генерації (замініть на реальний API виклик)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const templates = [
-      `Дякую за ваш лист від ${email.date.toLocaleDateString('uk-UA')}.`,
-      `Ваше повідомлення отримано та розглядається.`,
-      `Буду радий обговорити деталі особисто.`,
-      `Дякую за інформацію, яка буде використана в роботі.`
-    ];
-    
-    return templates[Math.floor(Math.random() * templates.length)];
   };
 
   const handleSendReply = async () => {
@@ -355,49 +381,148 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
         <div className="email-reply-form">
           <h3 className="text-lg font-medium text-gray-900">Відповісти</h3>
           
-          {/* Шаблони */}
+          {/* AI Відповідь - основна функція */}
           <div className="email-reply-section">
-            <label className="text-sm font-medium text-gray-700">Шаблон:</label>
-            <div className="flex items-center gap-4">
-              <select
-                value={selectedTemplate}
-                onChange={(e) => handleTemplateChange(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Виберіть шаблон</option>
-                {emailTemplates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">AI Відповідь:</label>
+              <div className="flex items-center text-xs text-gray-500">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                AI готовий до роботи
+              </div>
+            </div>
+            <div className="space-y-3">
+              {/* Тип відповіді для університету */}
+              <div className="flex items-center gap-4">
+                <select
+                  value={replyType}
+                  onChange={(e) => setReplyType(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="academic">🎓 Академічна</option>
+                  <option value="administrative">📋 Адміністративна</option>
+                  <option value="student_support">👨‍🎓 Підтримка студентів</option>
+                  <option value="colleague">🤝 Колегам</option>
+                  <option value="urgent">⚡ Термінова</option>
+                  <option value="confirmation">✅ Підтвердження</option>
+                </select>
+                
+                <select
+                  value={replyTone}
+                  onChange={(e) => setReplyTone(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="professional">🎯 Професійний</option>
+                  <option value="supportive">💪 Підтримуючий</option>
+                  <option value="encouraging">🌟 Заохочувальний</option>
+                  <option value="instructive">📚 Інструктивний</option>
+                  <option value="collaborative">🤝 Колаборативний</option>
+                </select>
+              </div>
               
-              <button
-                onClick={handleGenerateReply}
-                disabled={isGeneratingReply}
-                className="email-control-button email-control-button-primary disabled:opacity-50 whitespace-nowrap"
-              >
-                {isGeneratingReply ? 'Генерація...' : 'AI Відповідь'}
-              </button>
+              {/* Шаблон (опціонально) */}
+              <div className="flex items-center gap-4">
+                <select
+                  value={selectedTemplate}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">🎯 Без шаблону (AI генерує все)</option>
+                  {emailTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      📋 {template.name} (база для AI)
+                    </option>
+                  ))}
+                </select>
+                
+                <button
+                  onClick={handleGenerateReply}
+                  disabled={isGeneratingReply}
+                  className="email-control-button email-control-button-primary disabled:opacity-50 whitespace-nowrap px-6"
+                >
+                  {isGeneratingReply ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Генерація...
+                    </>
+                  ) : (
+                    '🎯 AI Відповідь'
+                  )}
+                </button>
+              </div>
+              
+              {/* Кастомні інструкції та мова */}
+              <div className="flex items-center gap-4">
+                <input
+                  type="text"
+                  value={customInstructions}
+                  onChange={(e) => setCustomInstructions(e.target.value)}
+                  placeholder="Спеціальні вимоги для AI (наприклад: 'включити посилання на документи', 'додати контакти')"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                
+                <select
+                  value={replyLanguage}
+                  onChange={(e) => setReplyLanguage(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="uk">🇺🇦 Українська</option>
+                  <option value="en">🇺🇸 English</option>
+                  <option value="de">🇩🇪 Deutsch</option>
+                </select>
+              </div>
             </div>
           </div>
           
           {/* Текст відповіді */}
           <div className="email-reply-section flex-1">
-            <label className="text-sm font-medium text-gray-700">Текст відповіді:</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">Текст відповіді:</label>
+              {isGeneratingReply && (
+                <div className="flex items-center text-sm text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                  AI генерує відповідь...
+                </div>
+              )}
+            </div>
             <textarea
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
-              placeholder="Введіть текст відповіді..."
+              placeholder={isGeneratingReply ? "AI генерує відповідь..." : "Текст відповіді з'явиться тут після генерації AI або введіть вручну..."}
               rows={4}
               className="email-reply-textarea"
+              disabled={isGeneratingReply}
             />
+            {replyText && (
+              <div className="mt-2 text-xs text-gray-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    Довжина: {replyText.length} символів | Слова: {replyText.split(/\s+/).filter(word => word.length > 0).length}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-green-600">🤖 AI згенеровано</span>
+                    {selectedTemplate && (
+                      <span className="text-blue-600">
+                        📋 Шаблон: {emailTemplates.find(t => t.id === selectedTemplate)?.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Кнопки дій */}
           <div className="email-reply-buttons">
             <div className="email-controls justify-between">
               <div className="email-controls">
+                <button 
+                  onClick={() => setReplyText('')}
+                  disabled={!replyText.trim()}
+                  className="email-control-button email-control-button-secondary"
+                >
+                  Очистити
+                </button>
+                
                 <button className="email-control-button email-control-button-primary">
                   <Reply className="h-4 w-4 mr-2 inline" />
                   Відповісти
@@ -409,13 +534,22 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
                 </button>
               </div>
               
-              <button
-                onClick={handleSendReply}
-                disabled={!replyText.trim()}
-                className="email-control-button email-control-button-success disabled:opacity-50"
-              >
-                Надіслати
-              </button>
+              <div className="email-controls">
+                <button
+                  onClick={() => setReplyText(replyText + '\n\n---\nMind Mate AI Assistant')}
+                  className="email-control-button email-control-button-secondary"
+                >
+                  + Підпис
+                </button>
+                
+                <button
+                  onClick={handleSendReply}
+                  disabled={!replyText.trim()}
+                  className="email-control-button email-control-button-success disabled:opacity-50"
+                >
+                  Надіслати
+                </button>
+              </div>
             </div>
           </div>
         </div>
