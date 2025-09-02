@@ -9,6 +9,66 @@ interface EmailListMenuProps {
 export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showLabelManager, setShowLabelManager] = useState(false);
+  const [newLabelForm, setNewLabelForm] = useState({
+    name: '',
+    backgroundColor: '#4285f4',
+    textColor: '#ffffff',
+    visibility: 'labelShow'
+  });
+  const [isCreatingLabel, setIsCreatingLabel] = useState(false);
+
+  const handleCreateLabel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newLabelForm.name.trim()) {
+      alert('Введіть назву мітки');
+      return;
+    }
+
+    setIsCreatingLabel(true);
+    
+    try {
+      const response = await fetch('/api/gmail/labels/manage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'create',
+          labelName: newLabelForm.name,
+          labelColor: {
+            backgroundColor: newLabelForm.backgroundColor,
+            textColor: newLabelForm.textColor
+          },
+          labelVisibility: newLabelForm.visibility
+        }),
+      });
+
+      if (response.ok) {
+        // Очищаємо форму
+        setNewLabelForm({
+          name: '',
+          backgroundColor: '#4285f4',
+          textColor: '#ffffff',
+          visibility: 'labelShow'
+        });
+        
+        // Оновлюємо список міток
+        onLabelUpdate();
+        
+        // Показуємо повідомлення про успіх
+        alert('Мітку успішно створено!');
+      } else {
+        const errorData = await response.json();
+        alert(`Помилка створення мітки: ${errorData.error || 'Невідома помилка'}`);
+      }
+    } catch (error) {
+      console.error('Failed to create label:', error);
+      alert('Помилка створення мітки. Спробуйте ще раз.');
+    } finally {
+      setIsCreatingLabel(false);
+    }
+  };
 
   const menuItems = [
     {
@@ -114,7 +174,7 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                 Створити нову мітку
               </h4>
               
-              <form className="space-y-4">
+              <form onSubmit={handleCreateLabel} className="space-y-4">
                 {/* Назва мітки */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -122,8 +182,11 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                   </label>
                   <input
                     type="text"
+                    value={newLabelForm.name}
+                    onChange={(e) => setNewLabelForm({ ...newLabelForm, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Введіть назву мітки"
+                    required
                   />
                 </div>
 
@@ -135,12 +198,14 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      defaultValue="#4285f4"
+                      value={newLabelForm.backgroundColor}
+                      onChange={(e) => setNewLabelForm({ ...newLabelForm, backgroundColor: e.target.value })}
                       className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
                     />
                     <input
                       type="text"
-                      defaultValue="#4285f4"
+                      value={newLabelForm.backgroundColor}
+                      onChange={(e) => setNewLabelForm({ ...newLabelForm, backgroundColor: e.target.value })}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="#4285f4"
                     />
@@ -155,12 +220,14 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      defaultValue="#ffffff"
+                      value={newLabelForm.textColor}
+                      onChange={(e) => setNewLabelForm({ ...newLabelForm, textColor: e.target.value })}
                       className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
                     />
                     <input
                       type="text"
-                      defaultValue="#ffffff"
+                      value={newLabelForm.textColor}
+                      onChange={(e) => setNewLabelForm({ ...newLabelForm, textColor: e.target.value })}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="#ffffff"
                     />
@@ -172,7 +239,11 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Видимість
                   </label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <select 
+                    value={newLabelForm.visibility}
+                    onChange={(e) => setNewLabelForm({ ...newLabelForm, visibility: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
                     <option value="labelShow">Показати в списку</option>
                     <option value="labelHide">Приховати зі списку</option>
                   </select>
@@ -182,9 +253,17 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                 <div className="flex gap-2 pt-4">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    disabled={isCreatingLabel}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Створити мітку
+                    {isCreatingLabel ? (
+                      <>
+                        <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Створення...
+                      </>
+                    ) : (
+                      'Створити мітку'
+                    )}
                   </button>
                   <button
                     type="button"
