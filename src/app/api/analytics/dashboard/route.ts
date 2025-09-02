@@ -17,17 +17,23 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Збираємо статистику з Gmail API
-    const gmailStats = await getGmailStatistics(session.accessToken, period, startDate, endDate);
-    
-    // Збираємо статистику AI асистента
-    const aiStats = await getAIStatistics(period, startDate, endDate);
+    // Збираємо статистику з різних джерел
+    const [gmailStats, aiStats, documentsStats, productivityStats, collaborationStats] = await Promise.all([
+      getGmailStatistics(session.accessToken, period, startDate, endDate),
+      getAIStatistics(period, startDate, endDate),
+      getDocumentsStats(period),
+      getProductivityStats(period),
+      getCollaborationStats(period)
+    ]);
 
     return NextResponse.json({
       success: true,
       data: {
         gmail: gmailStats,
         ai: aiStats,
+        documents: documentsStats,
+        productivity: productivityStats,
+        collaboration: collaborationStats,
         period,
         generatedAt: new Date().toISOString()
       }
@@ -300,4 +306,145 @@ function analyzeTopSenders(emails: any[]) {
 function calculateAverageResponseTime(emails: any[]) {
   // Спрощений розрахунок - в реальності потрібно аналізувати thread
   return 2.5; // години
+}
+
+// Функція для збору статистики документів
+async function getDocumentsStats(period: string) {
+  try {
+    // В реальності це буде API запит до бази даних документів
+    // Зараз використовуємо mock дані
+    const mockDocuments = {
+      totalDocuments: 24,
+      documentsByType: {
+        lecture: 8,
+        methodology: 6,
+        lab: 5,
+        course: 3,
+        thesis: 2
+      },
+      documentsByCategory: {
+        'Програмування': 10,
+        'Математика': 6,
+        'Фізика': 4,
+        'Історія': 2,
+        'Інше': 2
+      },
+      aiGeneratedDocuments: 18,
+      documentsThisPeriod: 7,
+      averageDocumentLength: 2500,
+      mostActiveDay: 'Понеділок',
+      documentsTrend: [
+        { day: 'Пн', count: 3 },
+        { day: 'Вт', count: 2 },
+        { day: 'Ср', count: 1 },
+        { day: 'Чт', count: 0 },
+        { day: 'Пт', count: 1 },
+        { day: 'Сб', count: 0 },
+        { day: 'Нд', count: 0 }
+      ]
+    };
+
+    return mockDocuments;
+  } catch (error) {
+    console.error('Documents statistics error:', error);
+    return {
+      totalDocuments: 0,
+      documentsByType: {},
+      documentsByCategory: {},
+      aiGeneratedDocuments: 0,
+      documentsThisPeriod: 0,
+      averageDocumentLength: 0,
+      mostActiveDay: 'Н/Д',
+      documentsTrend: []
+    };
+  }
+}
+
+// Функція для збору статистики продуктивності
+async function getProductivityStats(period: string) {
+  try {
+    // Mock дані для продуктивності
+    const mockProductivity = {
+      totalWorkHours: 42,
+      emailsPerHour: 3.2,
+      documentsPerWeek: 2.8,
+      aiTimeSaved: 8.5, // годин за тиждень
+      productivityScore: 87,
+      topProductiveHours: [
+        { hour: '9:00', score: 95 },
+        { hour: '10:00', score: 92 },
+        { hour: '11:00', score: 88 },
+        { hour: '14:00', score: 85 },
+        { hour: '15:00', score: 82 }
+      ],
+      workloadDistribution: {
+        emails: 40,
+        documents: 35,
+        collaboration: 15,
+        planning: 10
+      },
+      weeklyGoals: {
+        emailsProcessed: 85,
+        documentsCreated: 3,
+        aiTasksCompleted: 12,
+        collaborationHours: 8
+      }
+    };
+
+    return mockProductivity;
+  } catch (error) {
+    console.error('Productivity statistics error:', error);
+    return {
+      totalWorkHours: 0,
+      emailsPerHour: 0,
+      documentsPerWeek: 0,
+      aiTimeSaved: 0,
+      productivityScore: 0,
+      topProductiveHours: [],
+      workloadDistribution: {},
+      weeklyGoals: {}
+    };
+  }
+}
+
+// Функція для збору статистики співпраці
+async function getCollaborationStats(period: string) {
+  try {
+    // Mock дані для співпраці
+    const mockCollaboration = {
+      activeProjects: 4,
+      teamMembers: 12,
+      sharedDocuments: 18,
+      collaborationHours: 15,
+      topCollaborators: [
+        { name: 'Іван Петренко', projects: 3, hours: 8 },
+        { name: 'Марія Коваленко', projects: 2, hours: 6 },
+        { name: 'Олександр Сидоренко', projects: 2, hours: 5 }
+      ],
+      projectStatus: {
+        'Курсова робота': 'В процесі',
+        'Методичка': 'Завершено',
+        'Лабораторна': 'Очікує перевірки',
+        'Дипломна робота': 'Планування'
+      },
+      communicationChannels: {
+        email: 60,
+        documents: 25,
+        meetings: 15
+      }
+    };
+
+    return mockCollaboration;
+  } catch (error) {
+    console.error('Collaboration statistics error:', error);
+    return {
+      activeProjects: 0,
+      teamMembers: 0,
+      sharedDocuments: 0,
+      collaborationHours: 0,
+      topCollaborators: [],
+      projectStatus: {},
+      communicationChannels: {}
+    };
+  }
 }

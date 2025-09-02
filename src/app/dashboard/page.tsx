@@ -5,6 +5,9 @@ import { BarChart3, TrendingUp, Users, Mail, FileText, GraduationCap, Bot, Clock
 import StatsCard from '@/components/dashboard/StatsCard';
 import ActivityChart from '@/components/dashboard/ActivityChart';
 import CategoryChart from '@/components/dashboard/CategoryChart';
+import DocumentsStatsCard from '@/components/dashboard/DocumentsStatsCard';
+import ProductivityCard from '@/components/dashboard/ProductivityCard';
+import CollaborationCard from '@/components/dashboard/CollaborationCard';
 
 export default function DashboardPage() {
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -48,8 +51,8 @@ export default function DashboardPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Дашборд аналітики</h1>
-              <p className="text-gray-600 mt-2">Аналіз продуктивності та статистика роботи</p>
+              <h1 className="text-3xl font-bold text-gray-900">🎓 Університетський дашборд</h1>
+              <p className="text-gray-600 mt-2">Комплексна аналітика для викладачів: email'и, документи, AI та співпраця</p>
             </div>
             
             <div className="flex items-center gap-4">
@@ -125,6 +128,22 @@ export default function DashboardPage() {
             loading={loading}
           />
         </div>
+
+        {/* Нові віджети для університетського контексту */}
+        {!loading && analyticsData && (
+          <>
+            {/* Документи та AI статистика */}
+            <div className="mt-8">
+              <DocumentsStatsCard stats={analyticsData.documents || {}} />
+            </div>
+
+            {/* Продуктивність та співпраця */}
+            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <ProductivityCard stats={analyticsData.productivity || {}} />
+              <CollaborationCard stats={analyticsData.collaboration || {}} />
+            </div>
+          </>
+        )}
 
         {/* Додаткова статистика AI */}
         {analyticsData?.ai && (
