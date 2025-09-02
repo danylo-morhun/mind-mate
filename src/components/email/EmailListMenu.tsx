@@ -95,13 +95,30 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
 
       {/* LabelManager модальне вікно */}
       {showLabelManager && (
-        <LabelManager
-          labels={labels}
-          onLabelUpdate={() => {
-            onLabelUpdate();
-            setShowLabelManager(false);
-          }}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Управління мітками
+              </h3>
+              <button
+                onClick={() => setShowLabelManager(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <LabelManager
+              labels={labels}
+              onLabelUpdate={() => {
+                onLabelUpdate();
+                setShowLabelManager(false);
+              }}
+              hideButton={true}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

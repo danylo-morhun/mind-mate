@@ -15,21 +15,37 @@
       "modelUsed": "gemini-1.5-flash",
       "replyLength": 703,
       "userId": "danymorhun@gmail.com"
+    },
+    {
+      "id": "1756848737775",
+      "timestamp": "2025-09-02T21:32:17.775Z",
+      "emailId": "1990b2f51f3392b7",
+      "emailSubject": "Security alert",
+      "replyType": "academic",
+      "tone": "professional",
+      "language": "en",
+      "templateId": null,
+      "customInstructions": null,
+      "generationTime": 2.98,
+      "success": true,
+      "modelUsed": "gemini-1.5-flash",
+      "replyLength": 1004,
+      "userId": "danymorhun@gmail.com"
     }
   ],
   "templates": [],
   "stats": {
-    "totalRepliesGenerated": 1,
+    "totalRepliesGenerated": 2,
     "repliesByType": {
-      "academic": 1
+      "academic": 2
     },
     "repliesByTone": {
-      "professional": 1
+      "professional": 2
     },
-    "averageGenerationTime": 2.6,
+    "averageGenerationTime": 2.79,
     "templatesUsed": 0,
-    "aiOnlyGeneration": 1,
+    "aiOnlyGeneration": 2,
     "successRate": 100,
-    "lastUpdated": "2025-09-02T18:12:36.108Z"
+    "lastUpdated": "2025-09-02T21:32:17.775Z"
   }
 }

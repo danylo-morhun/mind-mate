@@ -13,6 +13,7 @@ interface Label {
 interface LabelManagerProps {
   labels: Label[];
   onLabelUpdate: () => void;
+  hideButton?: boolean;
 }
 
 export default function LabelManager({ labels, onLabelUpdate }: LabelManagerProps) {
@@ -130,14 +131,16 @@ export default function LabelManager({ labels, onLabelUpdate }: LabelManagerProp
 
   return (
     <div className="relative">
-      {/* Кнопка відкриття */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-      >
-        <Plus className="h-4 w-4" />
-        Управління мітками
-      </button>
+      {/* Кнопка відкриття - показується тільки якщо не прихована */}
+      {!hideButton && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Управління мітками
+        </button>
+      )}
 
       {/* Модальне вікно */}
       {isOpen && (
