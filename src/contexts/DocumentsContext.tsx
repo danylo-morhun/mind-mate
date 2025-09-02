@@ -202,17 +202,18 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_ERROR', payload: null });
       
       // TODO: Замінити на реальний API запит
-      const response = await fetch(`/api/documents/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
+      // Поки що оновлюємо локально
+      const updatedDocument = {
+        ...updates,
+        lastModified: new Date(),
+        metadata: updates.metadata ? {
+          ...updates.metadata,
+          lastAccessed: new Date()
+        } : undefined
+      };
       
-      if (!response.ok) {
-        throw new Error('Failed to update document');
-      }
-      
-      dispatch({ type: 'UPDATE_DOCUMENT', payload: { id, updates } });
+      dispatch({ type: 'UPDATE_DOCUMENT', payload: { id, updates: updatedDocument } });
+      return updatedDocument;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });

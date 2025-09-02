@@ -21,6 +21,7 @@ import {
 import { useDocuments } from '@/contexts/DocumentsContext';
 import DocumentList from '@/components/documents/DocumentList';
 import CreateDocumentModal from '@/components/documents/CreateDocumentModal';
+import EditDocumentModal from '@/components/documents/EditDocumentModal';
 
 export default function DocumentsPage() {
   const { 
@@ -41,6 +42,8 @@ export default function DocumentsPage() {
   const [selectedType, setSelectedType] = useState('all');
   const [starredDocuments, setStarredDocuments] = useState<string[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedDocumentForEdit, setSelectedDocumentForEdit] = useState<any>(null);
 
   const categories = [
     { id: 'all', name: 'Всі категорії', icon: FolderOpen, color: 'text-gray-600' },
@@ -91,8 +94,8 @@ export default function DocumentsPage() {
   };
 
   const handleDocumentEdit = (document: any) => {
-    selectDocument(document);
-    // TODO: Відкрити модальне вікно редагування
+    setSelectedDocumentForEdit(document);
+    setIsEditModalOpen(true);
   };
 
   const handleDocumentDelete = async (documentId: string) => {
@@ -112,6 +115,17 @@ export default function DocumentsPage() {
       alert('Документ успішно створено!');
     } catch (error) {
       alert('Помилка при створенні документа');
+    }
+  };
+
+  const handleEditDocument = async (updatedDocument: any) => {
+    try {
+      await updateDocument(updatedDocument.id, updatedDocument);
+      alert('Документ успішно оновлено!');
+      setIsEditModalOpen(false);
+      setSelectedDocumentForEdit(null);
+    } catch (error) {
+      alert('Помилка при оновленні документа');
     }
   };
 
@@ -257,6 +271,17 @@ export default function DocumentsPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreateDocument={handleCreateDocument}
+      />
+
+      {/* Модальне вікно редагування документа */}
+      <EditDocumentModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedDocumentForEdit(null);
+        }}
+        onSave={handleEditDocument}
+        document={selectedDocumentForEdit}
       />
     </div>
   );
