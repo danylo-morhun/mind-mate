@@ -209,23 +209,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Генеруємо контент за допомогою Gemini
-    const result = await geminiClient.generateContent([
-      {
-        role: 'user',
-        parts: [
-          {
-            text: `${templateConfig.systemPrompt}\n\n${userPrompt}`
-          }
-        ]
-      }
-    ]);
-
-    const response = result.response;
-    if (!response || !response.text) {
-      throw new Error('No response from Gemini API');
-    }
-
-    const generatedContent = response.text();
+    const fullPrompt = `${templateConfig.systemPrompt}\n\n${userPrompt}`;
+    const generatedContent = await geminiClient.generateReply(fullPrompt);
 
     console.log('Content generated successfully:', {
       template,
