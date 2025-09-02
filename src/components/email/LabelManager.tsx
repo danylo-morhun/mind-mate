@@ -14,9 +14,10 @@ interface LabelManagerProps {
   labels: Label[];
   onLabelUpdate: () => void;
   hideButton?: boolean;
+  hideModal?: boolean;
 }
 
-export default function LabelManager({ labels, onLabelUpdate, hideButton = false }: LabelManagerProps) {
+export default function LabelManager({ labels, onLabelUpdate, hideButton = false, hideModal = false }: LabelManagerProps) {
 
   const [isOpen, setIsOpen] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
@@ -143,8 +144,8 @@ export default function LabelManager({ labels, onLabelUpdate, hideButton = false
         </button>
       )}
 
-      {/* Модальне вікно */}
-      {isOpen && (
+      {/* Модальне вікно - показується тільки якщо не приховане */}
+      {isOpen && !hideModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative">
             <div className="flex items-center justify-between mb-4">

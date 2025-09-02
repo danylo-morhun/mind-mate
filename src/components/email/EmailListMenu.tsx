@@ -116,6 +116,7 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                 setShowLabelManager(false);
               }}
               hideButton={true}
+              hideModal={true}
             />
           </div>
         </div>
