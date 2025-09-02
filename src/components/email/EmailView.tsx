@@ -23,9 +23,11 @@ import EmailQuickActions from './EmailQuickActions';
 interface EmailViewProps {
   email: Email | null;
   onEmailUpdate: (emailId: string, updates: Partial<Email>) => void;
+  labels: any[];
+  onLabelUpdate: () => void;
 }
 
-export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
+export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate }: EmailViewProps) {
   const { emailTemplates } = useEmailTemplates();
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [replyText, setReplyText] = useState('');
@@ -414,8 +416,8 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
         <EmailQuickActions
           email={displayEmail}
           onEmailUpdate={onEmailUpdate}
-          labels={[]} // TODO: передати реальні мітки з EmailList
-          onLabelUpdate={() => {}} // TODO: оновити мітки
+          labels={labels}
+          onLabelUpdate={onLabelUpdate}
         />
       </div>
 

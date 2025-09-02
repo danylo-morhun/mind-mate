@@ -186,7 +186,11 @@ export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListP
           <div className="flex items-center gap-2">
             <EmailListMenu
               labels={labels}
-              onLabelUpdate={loadLabels}
+              onLabelUpdate={async () => {
+                await loadLabels();
+                // Додатково оновлюємо листи, щоб нові мітки з'явилися
+                await loadEmails();
+              }}
             />
           </div>
         </div>

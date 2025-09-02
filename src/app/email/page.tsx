@@ -13,6 +13,7 @@ export default function EmailPage() {
   const { setUser } = useUser();
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [labels, setLabels] = useState<any[]>([]);
   const [stats, setStats] = useState({
     total: 0,
     unread: 0,
@@ -23,7 +24,20 @@ export default function EmailPage() {
   // Завантаження початкових даних
   useEffect(() => {
     loadInitialData();
+    loadLabels();
   }, []);
+
+  const loadLabels = async () => {
+    try {
+      const response = await fetch('/api/gmail/labels');
+      if (response.ok) {
+        const data = await response.json();
+        setLabels(data.labels);
+      }
+    } catch (error) {
+      console.error('Помилка завантаження міток:', error);
+    }
+  };
 
   const loadInitialData = async () => {
     setIsLoading(true);
@@ -166,6 +180,8 @@ export default function EmailPage() {
         <EmailView
           email={selectedEmail}
           onEmailUpdate={handleEmailUpdate}
+          labels={labels}
+          onLabelUpdate={loadLabels}
         />
       </div>
     </div>
