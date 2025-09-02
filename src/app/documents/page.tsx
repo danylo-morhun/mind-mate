@@ -26,7 +26,7 @@ export default function DocumentsPage() {
     state, 
     loadDocuments, 
     setFilters, 
-    setViewMode, 
+    setViewMode: setContextViewMode, 
     getFilteredDocuments,
     selectDocument,
     createDocument,
@@ -34,7 +34,7 @@ export default function DocumentsPage() {
     deleteDocument
   } = useDocuments();
   
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setLocalViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
@@ -79,8 +79,8 @@ export default function DocumentsPage() {
 
   // Оновлення режиму перегляду
   useEffect(() => {
-    setViewMode(viewMode);
-  }, [viewMode, setViewMode]);
+    setContextViewMode(viewMode);
+  }, [viewMode, setContextViewMode]);
 
   // Обробники подій
   const handleDocumentSelect = (document: any) => {
@@ -205,7 +205,7 @@ export default function DocumentsPage() {
             {/* Перемикач виду */}
             <div className="flex border border-gray-200 rounded-lg">
               <button
-                onClick={() => setViewMode('grid')}
+                onClick={() => setLocalViewMode('grid')}
                 className={`p-2 rounded-l-lg transition-colors ${
                   viewMode === 'grid'
                     ? 'bg-blue-50 text-blue-600 border-r border-blue-200'
@@ -215,7 +215,7 @@ export default function DocumentsPage() {
                 <Grid className="h-5 w-5" />
               </button>
               <button
-                onClick={() => setViewMode('list')}
+                onClick={() => setLocalViewMode('list')}
                 className={`p-2 rounded-r-lg transition-colors ${
                   viewMode === 'list'
                     ? 'bg-blue-50 text-blue-600 border-l border-blue-200'
