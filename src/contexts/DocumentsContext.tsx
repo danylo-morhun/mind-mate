@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useCallback } from 'react';
 import { Document, DocumentType, DocumentCategory, DocumentStatus } from '@/lib/types';
 
 // Типи для дій
@@ -130,7 +130,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(documentsReducer, initialState);
 
   // Завантаження документів
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -148,10 +148,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Створення документа
-  const createDocument = async (document: Omit<Document, 'id' | 'createdDate' | 'lastModified'>): Promise<Document> => {
+  const createDocument = useCallback(async (document: Omit<Document, 'id' | 'createdDate' | 'lastModified'>): Promise<Document> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -177,10 +177,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Оновлення документа
-  const updateDocument = async (id: string, updates: Partial<Document>) => {
+  const updateDocument = useCallback(async (id: string, updates: Partial<Document>) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -204,10 +204,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Видалення документа
-  const deleteDocument = async (id: string) => {
+  const deleteDocument = useCallback(async (id: string) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -229,30 +229,30 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Вибір документа
-  const selectDocument = (document: Document | null) => {
+  const selectDocument = useCallback((document: Document | null) => {
     dispatch({ type: 'SET_SELECTED_DOCUMENT', payload: document });
-  };
+  }, []);
 
   // Встановлення фільтрів
-  const setFilters = (filters: Partial<DocumentsState['filters']>) => {
+  const setFilters = useCallback((filters: Partial<DocumentsState['filters']>) => {
     dispatch({ type: 'SET_FILTERS', payload: filters });
-  };
+  }, []);
 
   // Встановлення режиму перегляду
-  const setViewMode = (mode: 'grid' | 'list') => {
+  const setViewMode = useCallback((mode: 'grid' | 'list') => {
     dispatch({ type: 'SET_VIEW_MODE', payload: mode });
-  };
+  }, []);
 
   // Очищення помилки
-  const clearError = () => {
+  const clearError = useCallback(() => {
     dispatch({ type: 'CLEAR_ERROR' });
-  };
+  }, []);
 
   // Отримання відфільтрованих документів
-  const getFilteredDocuments = (): Document[] => {
+  const getFilteredDocuments = useCallback((): Document[] => {
     let filtered = state.documents;
 
     // Фільтр по категорії
@@ -281,27 +281,27 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     }
 
     return filtered;
-  };
+  }, [state.documents, state.filters]);
 
   // Отримання документа по ID
-  const getDocumentById = (id: string): Document | undefined => {
+  const getDocumentById = useCallback((id: string): Document | undefined => {
     return state.documents.find(doc => doc.id === id);
-  };
+  }, [state.documents]);
 
   // Отримання документів по категорії
-  const getDocumentsByCategory = (category: string): Document[] => {
+  const getDocumentsByCategory = useCallback((category: string): Document[] => {
     return state.documents.filter(doc => doc.category === category);
-  };
+  }, [state.documents]);
 
   // Отримання документів по типу
-  const getDocumentsByType = (type: string): Document[] => {
+  const getDocumentsByType = useCallback((type: string): Document[] => {
     return state.documents.filter(doc => doc.type === type);
-  };
+  }, [state.documents]);
 
   // Отримання документів по статусу
-  const getDocumentsByStatus = (status: string): Document[] => {
+  const getDocumentsByStatus = useCallback((status: string): Document[] => {
     return state.documents.filter(doc => doc.status === status);
-  };
+  }, [state.documents]);
 
   const value: DocumentsContextType = {
     state,

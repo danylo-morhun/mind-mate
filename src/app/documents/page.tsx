@@ -60,27 +60,27 @@ export default function DocumentsPage() {
   // Завантаження документів при монтуванні
   useEffect(() => {
     loadDocuments();
-  }, [loadDocuments]);
+  }, []); // Завантажуємо тільки один раз
 
   // Оновлення фільтрів при зміні пошуку
   useEffect(() => {
     setFilters({ search: searchQuery });
-  }, [searchQuery, setFilters]);
+  }, [searchQuery]); // Тільки при зміні пошуку
 
   // Оновлення фільтрів при зміні категорії
   useEffect(() => {
     setFilters({ category: selectedCategory });
-  }, [selectedCategory, setFilters]);
+  }, [selectedCategory]); // Тільки при зміні категорії
 
   // Оновлення фільтрів при зміні типу
   useEffect(() => {
     setFilters({ type: selectedType });
-  }, [selectedType, setFilters]);
+  }, [selectedType]); // Тільки при зміні типу
 
-  // Оновлення режиму перегляду
+  // Оновлення режиму перегляду в контексті
   useEffect(() => {
     setContextViewMode(viewMode);
-  }, [viewMode, setContextViewMode]);
+  }, [viewMode]); // Тільки при зміні локального режиму
 
   // Обробники подій
   const handleDocumentSelect = (document: any) => {
