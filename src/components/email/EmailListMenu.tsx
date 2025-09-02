@@ -27,24 +27,33 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
 
     setIsCreatingLabel(true);
     
+    const requestBody = {
+      action: 'create',
+      labelName: newLabelForm.name,
+      labelColor: {
+        backgroundColor: newLabelForm.backgroundColor,
+        textColor: newLabelForm.textColor
+      },
+      labelVisibility: newLabelForm.visibility
+    };
+    
+    console.log('Sending label creation request:', requestBody);
+    
     try {
       const response = await fetch('/api/gmail/labels/manage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'create',
-          labelName: newLabelForm.name,
-          labelColor: {
-            backgroundColor: newLabelForm.backgroundColor,
-            textColor: newLabelForm.textColor
-          },
-          labelVisibility: newLabelForm.visibility
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
+        const responseData = await response.json();
+        console.log('Success response:', responseData);
+        
         // Очищаємо форму
         setNewLabelForm({
           name: '',
@@ -60,6 +69,7 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
         alert('Мітку успішно створено!');
       } else {
         const errorData = await response.json();
+        console.error('Error response:', errorData);
         alert(`Помилка створення мітки: ${errorData.error || 'Невідома помилка'}`);
       }
     } catch (error) {
