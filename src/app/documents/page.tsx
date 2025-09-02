@@ -1,133 +1,159 @@
 'use client';
 
-import React from 'react';
-import { FileText, Plus, Search, Filter, Bot } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  FileText, 
+  Plus, 
+  Search, 
+  Filter, 
+  Grid, 
+  List, 
+  FolderOpen,
+  BookOpen,
+  FileSpreadsheet,
+  Presentation,
+  Archive,
+  Star,
+  Clock,
+  User,
+  Tag
+} from 'lucide-react';
 
 export default function DocumentsPage() {
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Заголовок */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">AI-Документи</h1>
-          <p className="text-gray-600 mt-2">Створення та редагування документів з допомогою штучного інтелекту</p>
-        </div>
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
 
-        {/* Панель дій */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors">
-                <Plus className="h-4 w-4 mr-2" />
-                Новий документ
-              </button>
-              <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors">
-                <Bot className="h-4 w-4 mr-2" />
-                AI-Генерація
-              </button>
-            </div>
-            
-            <div className="flex items-center space-x-2">
+  const categories = [
+    { id: 'all', name: 'Всі категорії', icon: FolderOpen, color: 'text-gray-600' },
+    { id: 'lectures', name: 'Лекції', icon: BookOpen, color: 'text-blue-600' },
+    { id: 'methodics', name: 'Методички', icon: FileText, color: 'text-green-600' },
+    { id: 'reports', name: 'Звіти', icon: FileSpreadsheet, color: 'text-purple-600' },
+    { id: 'presentations', name: 'Презентації', icon: Presentation, color: 'text-orange-600' },
+    { id: 'plans', name: 'Плани', icon: Clock, color: 'text-red-600' }
+  ];
+
+  const documentTypes = [
+    { id: 'all', name: 'Всі типи', color: 'text-gray-600' },
+    { id: 'doc', name: 'Google Docs', color: 'text-blue-600' },
+    { id: 'sheet', name: 'Google Sheets', color: 'text-green-600' },
+    { id: 'slide', name: 'Google Slides', color: 'text-orange-600' },
+    { id: 'pdf', name: 'PDF', color: 'text-red-600' }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Заголовок сторінки */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Документи</h1>
+            <p className="text-gray-600 mt-1">Управління документами та матеріалами</p>
+          </div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <Plus className="h-5 w-5" />
+            Створити документ
+          </button>
+        </div>
+      </div>
+
+      <div className="px-6 py-6">
+        {/* Панель пошуку та фільтрів */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Пошук */}
+            <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Пошук документів..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Пошук по документам..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
-                <Filter className="h-4 w-4" />
+            </div>
+
+            {/* Фільтр категорій */}
+            <div className="flex gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                    selectedCategory === category.id
+                      ? 'bg-blue-50 border-blue-200 text-blue-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <category.icon className={`h-4 w-4 ${category.color}`} />
+                  <span className="text-sm font-medium">{category.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Фільтр типів */}
+            <div className="flex gap-2">
+              {documentTypes.map((type) => (
+                <button
+                  key={type.id}
+                  onClick={() => setSelectedType(type.id)}
+                  className={`px-3 py-2 rounded-lg border transition-colors ${
+                    selectedType === type.id
+                      ? 'bg-blue-50 border-blue-200 text-blue-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-sm font-medium">{type.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Перемикач виду */}
+            <div className="flex border border-gray-200 rounded-lg">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-l-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-blue-50 text-blue-600 border-r border-blue-200'
+                    : 'bg-white text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <Grid className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-r-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-blue-50 text-blue-600 border-l border-blue-200'
+                    : 'bg-white text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <List className="h-5 w-5" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Список документів */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Приклад документа */}
-          <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                </div>
-                <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                  Опубліковано
-                </span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Лекція: Вступ до програмування
-              </h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Основи програмування для студентів першого курсу...
-              </p>
-              <div className="flex items-center justify-between text-sm text-gray-500">
-                <span>Автор: Іванов І.І.</span>
-                <span>2 дні тому</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Приклад документа */}
-          <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-purple-600" />
-                </div>
-                <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
-                  На перегляді
-                </span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Методичка: Лабораторні роботи
-              </h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Інструкції для виконання лабораторних робіт...
-              </p>
-              <div className="flex items-center justify-between text-sm text-gray-500">
-                <span>Автор: Петров П.П.</span>
-                <span>1 тиждень тому</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Приклад документа */}
-          <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-green-600" />
-                </div>
-                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                  Чернетка
-                </span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Звіт: Аналіз успішності
-              </h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Аналіз успішності студентів за семестр...
-              </p>
-              <div className="flex items-center justify-between text-sm text-gray-500">
-                <span>Автор: Сидоров С.С.</span>
-                <span>3 дні тому</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Повідомлення про розробку */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <div className="flex items-center">
-            <FileText className="h-6 w-6 text-blue-600 mr-3" />
-            <div>
-              <h3 className="text-lg font-semibold text-blue-900">Модуль в розробці</h3>
-              <p className="text-blue-700 mt-1">
-                Модуль AI-документів знаходиться в процесі розробки. 
-                Тут буде можливість створювати документи з допомогою штучного інтелекту.
-              </p>
+        {/* Основний контент */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="text-center py-12">
+            <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Модуль документів в розробці
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Тут буде відображатися список документів та можливості для роботи з ними
+            </p>
+            <div className="flex justify-center gap-4">
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                Створити перший документ
+              </button>
+              <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                Дізнатися більше
+              </button>
             </div>
           </div>
         </div>

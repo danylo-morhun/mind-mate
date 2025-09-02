@@ -66,13 +66,66 @@ export interface Document {
   id: string;
   title: string;
   content: string;
-  type: 'lecture' | 'methodology' | 'report' | 'presentation';
+  type: DocumentType;
+  category: DocumentCategory;
   author: string;
   collaborators: string[];
   version: number;
   lastModified: Date;
+  createdDate: Date;
   tags: string[];
-  status: 'draft' | 'review' | 'published';
+  status: DocumentStatus;
+  permissions: DocumentPermissions;
+  metadata: DocumentMetadata;
+  aiGenerated: boolean;
+  templateId?: string;
+}
+
+export type DocumentType = 
+  | 'doc'      // Google Docs
+  | 'sheet'    // Google Sheets
+  | 'slide'    // Google Slides
+  | 'pdf'      // PDF
+  | 'drawing'  // Google Drawings
+  | 'form';    // Google Forms
+
+export type DocumentCategory = 
+  | 'lectures'     // Лекції
+  | 'methodics'    // Методички
+  | 'reports'      // Звіти
+  | 'presentations' // Презентації
+  | 'plans'        // Плани
+  | 'assignments'  // Завдання
+  | 'syllabi'      // Програми
+  | 'other';       // Інше
+
+export type DocumentStatus = 
+  | 'draft'        // Чернетка
+  | 'in_review'    // На перегляді
+  | 'approved'     // Затверджено
+  | 'published'    // Опубліковано
+  | 'archived'     // Архівовано
+  | 'deprecated';  // Застаріло
+
+export interface DocumentPermissions {
+  canView: string[];      // ID користувачів, які можуть переглядати
+  canEdit: string[];      // ID користувачів, які можуть редагувати
+  canComment: string[];   // ID користувачів, які можуть коментувати
+  canShare: string[];     // ID користувачів, які можуть ділитися
+  isPublic: boolean;      // Чи публічний документ
+}
+
+export interface DocumentMetadata {
+  subject: string;        // Предмет/дисципліна
+  semester: string;       // Семестр
+  academicYear: string;   // Навчальний рік
+  department: string;     // Кафедра
+  course: string;         // Курс
+  language: string;       // Мова документа
+  wordCount: number;      // Кількість слів
+  pageCount: number;      // Кількість сторінок
+  lastAccessed: Date;     // Останній доступ
+  accessCount: number;    // Кількість переглядів
 }
 
 export interface GradingCriteria {
