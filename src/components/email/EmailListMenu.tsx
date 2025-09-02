@@ -16,6 +16,9 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
     visibility: 'labelShow'
   });
   const [isCreatingLabel, setIsCreatingLabel] = useState(false);
+  const [editingLabel, setEditingLabel] = useState<any>(null);
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [isDeletingLabel, setIsDeletingLabel] = useState(false);
 
   const handleCreateLabel = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +81,94 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
     } finally {
       setIsCreatingLabel(false);
     }
+  };
+
+  const handleEditLabel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingLabel || !editingLabel.name.trim()) {
+      alert('Введіть назву мітки');
+      return;
+    }
+
+    setIsEditingLabel(true);
+    
+    try {
+      const response = await fetch('/api/gmail/labels/manage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update',
+          labelId: editingLabel.id,
+          labelName: editingLabel.name,
+          labelColor: {
+            backgroundColor: editingLabel.backgroundColor,
+            textColor: editingLabel.textColor
+          },
+          labelVisibility: editingLabel.visibility
+        }),
+      });
+
+      if (response.ok) {
+        alert('Мітку успішно оновлено!');
+        setEditingLabel(null);
+        onLabelUpdate();
+      } else {
+        const errorData = await response.json();
+        alert(`Помилка оновлення мітки: ${errorData.error || 'Невідома помилка'}`);
+      }
+    } catch (error) {
+      console.error('Failed to update label:', error);
+      alert('Помилка оновлення мітки. Спробуйте ще раз.');
+    } finally {
+      setIsEditingLabel(false);
+    }
+  };
+
+  const handleDeleteLabel = async (labelId: string) => {
+    if (!confirm('Ви впевнені, що хочете видалити цю мітку?')) {
+      return;
+    }
+
+    setIsDeletingLabel(true);
+    
+    try {
+      const response = await fetch('/api/gmail/labels/manage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          labelId: labelId
+        }),
+      });
+
+      if (response.ok) {
+        alert('Мітку успішно видалено!');
+        onLabelUpdate();
+      } else {
+        const errorData = await response.json();
+        alert(`Помилка видалення мітки: ${errorData.error || 'Невідома помилка'}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete label:', error);
+      alert('Помилка видалення мітки. Спробуйте ще раз.');
+    } finally {
+      setIsDeletingLabel(false);
+    }
+  };
+
+  const startEditing = (label: any) => {
+    setEditingLabel({
+      id: label.id,
+      name: label.name,
+      backgroundColor: label.backgroundColor || '#4285f4',
+      textColor: label.textColor || '#ffffff',
+      visibility: label.labelListVisibility || 'labelShow'
+    });
   };
 
   const menuItems = [
@@ -286,6 +377,116 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
               </form>
             </div>
 
+            {/* Форма редагування мітки */}
+            {editingLabel && (
+              <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="text-lg font-medium text-blue-900 mb-4">
+                  Редагування мітки
+                </h4>
+                
+                <form onSubmit={handleEditLabel} className="space-y-4">
+                  {/* Назва мітки */}
+                  <div>
+                    <label className="block text-sm font-medium text-blue-700 mb-1">
+                      Назва мітки
+                    </label>
+                    <input
+                      type="text"
+                      value={editingLabel.name}
+                      onChange={(e) => setEditingLabel({ ...editingLabel, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Введіть назву мітки"
+                      required
+                    />
+                  </div>
+
+                  {/* Колір фону */}
+                  <div>
+                    <label className="block text-sm font-medium text-blue-700 mb-1">
+                      Колір фону
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={editingLabel.backgroundColor}
+                        onChange={(e) => setEditingLabel({ ...editingLabel, backgroundColor: e.target.value })}
+                        className="w-12 h-10 border border-blue-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editingLabel.backgroundColor}
+                        onChange={(e) => setEditingLabel({ ...editingLabel, backgroundColor: e.target.value })}
+                        className="flex-1 px-3 py-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="#4285f4"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Колір тексту */}
+                  <div>
+                    <label className="block text-sm font-medium text-blue-700 mb-1">
+                      Колір тексту
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={editingLabel.textColor}
+                        onChange={(e) => setEditingLabel({ ...editingLabel, textColor: e.target.value })}
+                        className="w-12 h-10 border border-blue-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editingLabel.textColor}
+                        onChange={(e) => setEditingLabel({ ...editingLabel, textColor: e.target.value })}
+                        className="flex-1 px-3 py-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="#ffffff"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Видимість */}
+                  <div>
+                    <label className="block text-sm font-medium text-blue-700 mb-1">
+                      Видимість
+                    </label>
+                    <select 
+                      value={editingLabel.visibility}
+                      onChange={(e) => setEditingLabel({ ...editingLabel, visibility: e.target.value })}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="labelShow">Показати в списку</option>
+                      <option value="labelHide">Приховати зі списку</option>
+                    </select>
+                  </div>
+
+                  {/* Кнопки */}
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      type="submit"
+                      disabled={isEditingLabel}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isEditingLabel ? (
+                        <>
+                          <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Оновлення...
+                        </>
+                      ) : (
+                        'Оновити мітку'
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingLabel(null)}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             {/* Список існуючих міток */}
             <div>
               <h4 className="text-lg font-medium text-gray-900 mb-4">
@@ -304,6 +505,7 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                     </div>
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => startEditing(label)}
                         className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                         title="Редагувати"
                       >
@@ -312,12 +514,18 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
                         </svg>
                       </button>
                       <button
-                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                        onClick={() => handleDeleteLabel(label.id)}
+                        disabled={isDeletingLabel}
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
                         title="Видалити"
                       >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        {isDeletingLabel ? (
+                          <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                   </div>

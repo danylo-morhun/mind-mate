@@ -58,10 +58,16 @@ async function createLabel(accessToken: string, name: string, color: { backgroun
     const requestBody = {
       name,
       labelListVisibility: visibility || 'labelShow',
-      messageListVisibility: 'show',
-      backgroundColor: color?.backgroundColor || '#4285f4',
-      textColor: color?.textColor || '#ffffff'
+      messageListVisibility: 'show'
     };
+    
+    // Додаємо кольори тільки якщо вони вказані
+    if (color?.backgroundColor) {
+      requestBody.backgroundColor = color.backgroundColor;
+    }
+    if (color?.textColor) {
+      requestBody.textColor = color.textColor;
+    }
     
     console.log('Request body:', JSON.stringify(requestBody, null, 2));
     
