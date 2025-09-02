@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Plus, 
@@ -18,12 +18,27 @@ import {
   User,
   Tag
 } from 'lucide-react';
+import { useDocuments } from '@/contexts/DocumentsContext';
+import DocumentList from '@/components/documents/DocumentList';
 
 export default function DocumentsPage() {
+  const { 
+    state, 
+    loadDocuments, 
+    setFilters, 
+    setViewMode, 
+    getFilteredDocuments,
+    selectDocument,
+    createDocument,
+    updateDocument,
+    deleteDocument
+  } = useDocuments();
+  
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
+  const [starredDocuments, setStarredDocuments] = useState<string[]>([]);
 
   const categories = [
     { id: 'all', name: 'Всі категорії', icon: FolderOpen, color: 'text-gray-600' },
@@ -42,6 +57,79 @@ export default function DocumentsPage() {
     { id: 'pdf', name: 'PDF', color: 'text-red-600' }
   ];
 
+  // Завантаження документів при монтуванні
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
+
+  // Оновлення фільтрів при зміні пошуку
+  useEffect(() => {
+    setFilters({ search: searchQuery });
+  }, [searchQuery, setFilters]);
+
+  // Оновлення фільтрів при зміні категорії
+  useEffect(() => {
+    setFilters({ category: selectedCategory });
+  }, [selectedCategory, setFilters]);
+
+  // Оновлення фільтрів при зміні типу
+  useEffect(() => {
+    setFilters({ type: selectedType });
+  }, [selectedType, setFilters]);
+
+  // Оновлення режиму перегляду
+  useEffect(() => {
+    setViewMode(viewMode);
+  }, [viewMode, setViewMode]);
+
+  // Обробники подій
+  const handleDocumentSelect = (document: any) => {
+    selectDocument(document);
+    // TODO: Відкрити модальне вікно перегляду документа
+  };
+
+  const handleDocumentEdit = (document: any) => {
+    selectDocument(document);
+    // TODO: Відкрити модальне вікно редагування
+  };
+
+  const handleDocumentDelete = async (documentId: string) => {
+    if (confirm('Ви впевнені, що хочете видалити цей документ?')) {
+      try {
+        await deleteDocument(documentId);
+        alert('Документ успішно видалено!');
+      } catch (error) {
+        alert('Помилка видалення документа');
+      }
+    }
+  };
+
+  const handleDocumentShare = (document: any) => {
+    // TODO: Відкрити модальне вікно налаштування доступу
+    alert('Функція поділитися буде реалізована в наступному кроці');
+  };
+
+  const handleDocumentDownload = (document: any) => {
+    // TODO: Реалізувати завантаження документа
+    alert('Функція завантаження буде реалізована в наступному кроці');
+  };
+
+  const handleToggleStar = (documentId: string) => {
+    setStarredDocuments(prev => 
+      prev.includes(documentId) 
+        ? prev.filter(id => id !== documentId)
+        : [...prev, documentId]
+    );
+  };
+
+  const handleCreateDocument = () => {
+    // TODO: Відкрити модальне вікно створення документа
+    alert('Функція створення документа буде реалізована в наступному кроці');
+  };
+
+  // Отримання відфільтрованих документів
+  const filteredDocuments = getFilteredDocuments();
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Заголовок сторінки */}
@@ -51,7 +139,10 @@ export default function DocumentsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Документи</h1>
             <p className="text-gray-600 mt-1">Управління документами та матеріалами</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button 
+            onClick={handleCreateDocument}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Plus className="h-5 w-5" />
             Створити документ
           </button>
@@ -139,23 +230,17 @@ export default function DocumentsPage() {
 
         {/* Основний контент */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="text-center py-12">
-            <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Модуль документів в розробці
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Тут буде відображатися список документів та можливості для роботи з ними
-            </p>
-            <div className="flex justify-center gap-4">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Створити перший документ
-              </button>
-              <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                Дізнатися більше
-              </button>
-            </div>
-          </div>
+          <DocumentList
+            documents={filteredDocuments}
+            viewMode={viewMode}
+            onSelect={handleDocumentSelect}
+            onEdit={handleDocumentEdit}
+            onDelete={handleDocumentDelete}
+            onShare={handleDocumentShare}
+            onDownload={handleDocumentDownload}
+            onToggleStar={handleToggleStar}
+            starredDocuments={starredDocuments}
+          />
         </div>
       </div>
     </div>
