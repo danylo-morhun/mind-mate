@@ -60,6 +60,8 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
   const [newCollaborator, setNewCollaborator] = useState('');
   const [newComment, setNewComment] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
+  const [improvementContext, setImprovementContext] = useState('');
 
   // Mock data для версій та коментарів
   const [versions] = useState<DocumentVersion[]>([
@@ -135,6 +137,57 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
       setNewComment('');
     }
   }, [newComment]);
+
+  const handleImproveContentWithAI = useCallback(async () => {
+    if (!formData || !formData.title) return;
+
+    setIsImproving(true);
+    try {
+      // Визначаємо тип документа для AI
+      const documentType = formData.type || 'document';
+      const template = documentType === 'lecture' ? 'lecture' : 
+                     documentType === 'methodology' ? 'methodology' :
+                     documentType === 'lab' ? 'lab' :
+                     documentType === 'course' ? 'course' :
+                     documentType === 'thesis' ? 'thesis' : 'lecture';
+
+      // Інтеграція з Gemini API для покращення контенту
+      const response = await fetch('/api/documents/generate-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          template: template,
+          description: formData.description,
+          category: formData.category,
+          type: documentType,
+          additionalContext: `Покрашити існуючий контент: ${formData.content.substring(0, 200)}... ${improvementContext ? `Додаткові вимоги: ${improvementContext}` : ''}`
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to improve content');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.content) {
+        setFormData(prev => prev ? { ...prev, content: result.content } : null);
+        console.log('Content improved successfully:', result.metadata);
+        alert('Контент успішно покращено за допомогою AI!');
+      } else {
+        throw new Error('No improved content received from AI');
+      }
+    } catch (error) {
+      console.error('Error improving content:', error);
+      alert(`Помилка при покращенні контенту: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+    } finally {
+      setIsImproving(false);
+    }
+  }, [formData, improvementContext]);
 
   const handleSave = useCallback(async () => {
     if (!formData) return;
@@ -295,6 +348,48 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
                 />
               </div>
+
+              {/* AI Generation для покращення контенту */}
+              {isEditing && (
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                      <span className="text-sm font-medium text-purple-900">🤖 AI Покращення контенту</span>
+                    </div>
+                    <button
+                      onClick={handleImproveContentWithAI}
+                      disabled={isImproving || !formData.title}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isImproving ? '🔄 Покращуємо...' : '✨ Покрашити контент'}
+                    </button>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-purple-900 mb-2">
+                      💡 Що покрашити (необов'язково)
+                    </label>
+                    <textarea
+                      value={improvementContext}
+                      onChange={(e) => setImprovementContext(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                      placeholder="Опишіть, що саме потрібно покрашити в контенті..."
+                    />
+                  </div>
+                  
+                  <div className="text-sm text-purple-700 space-y-2">
+                    <p><strong>✨ Що може покрашити AI:</strong></p>
+                    <ul className="list-disc list-inside space-y-1 ml-2">
+                      <li>Структуру та логіку викладення</li>
+                      <li>Стиль та читабельність тексту</li>
+                      <li>Додати практичні приклади</li>
+                      <li>Розширити пояснення</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
 
               {/* Content */}
               <div>

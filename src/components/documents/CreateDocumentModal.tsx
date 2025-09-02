@@ -337,40 +337,46 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
                 </div>
               </div>
 
-              {/* AI Generation */}
+              {/* AI Generation для всіх шаблонів крім blank */}
               {formData.template !== 'blank' && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                      <span className="text-sm font-medium text-blue-900">AI Генерація</span>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      <span className="text-sm font-medium text-green-900">🤖 AI Генерація контенту</span>
                     </div>
                     <button
                       onClick={generateContentWithAI}
                       disabled={isGenerating || !formData.title}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {isGenerating ? 'Генеруємо...' : 'Згенерувати контент'}
+                      {isGenerating ? '🔄 Генеруємо...' : '🚀 Згенерувати контент'}
                     </button>
                   </div>
                   
-                  {/* Додатковий контекст для AI */}
                   <div className="mb-3">
-                    <label className="block text-sm font-medium text-blue-900 mb-2">
-                      Додатковий контекст для AI (необов'язково)
+                    <label className="block text-sm font-medium text-green-900 mb-2">
+                      💡 Додатковий контекст для AI (необов'язково)
                     </label>
                     <textarea
                       value={formData.additionalContext}
                       onChange={(e) => handleInputChange('additionalContext', e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
                       placeholder="Додайте додаткову інформацію, специфічні вимоги або контекст для кращої генерації..."
                     />
                   </div>
                   
-                  <p className="text-sm text-blue-700">
-                    Використайте AI для автоматичного створення структури та базового контенту документа на основі заголовку, опису та додаткового контексту
-                  </p>
+                  <div className="text-sm text-green-700 space-y-2">
+                    <p><strong>✨ Що генерує AI:</strong></p>
+                    <ul className="list-disc list-inside space-y-1 ml-2">
+                      <li>Структурований контент з розділами та підрозділами</li>
+                      <li>Практичні приклади та пояснення</li>
+                      <li>Висновки та питання для самоперевірки</li>
+                      <li>Рекомендовану літературу</li>
+                    </ul>
+                    <p className="mt-2"><strong>🎯 Поточний шаблон:</strong> {documentTemplates.find(t => t.id === formData.template)?.name}</p>
+                  </div>
                 </div>
               )}
 
