@@ -369,7 +369,7 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
   return (
     <div className="flex-1 flex flex-col bg-white h-full email-container">
       {/* Заголовок листа - фіксований */}
-      <div className="p-6 border-b border-gray-200 flex-shrink-0 bg-white email-header">
+      <div className="p-6 border-b border-gray-200 flex-shrink-0 bg-white email-header" style={{ zIndex: 2 }}>
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -463,7 +463,7 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
       </div>
 
       {/* Форма відповіді - фіксована висота без скролу */}
-      <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0 email-form">
+      <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0 email-form" style={{ zIndex: 2 }}>
         <div className="email-reply-form">
           <h3 className="text-lg font-medium text-gray-900">Відповісти</h3>
           
