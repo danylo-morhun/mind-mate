@@ -5,6 +5,7 @@ import { Mail, Search, Filter, MoreVertical, Star, StarOff, Archive, Trash2, Tag
 import { Email, EmailCategory, EmailPriority } from '@/lib/types';
 import { useEmails } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
+import LabelManager from './LabelManager';
 
 interface EmailListProps {
   onEmailSelect: (email: Email) => void;
@@ -86,6 +87,10 @@ export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListP
     } catch (error) {
       console.error('Помилка завантаження міток:', error);
     }
+  };
+
+  const refreshLabels = () => {
+    loadLabels();
   };
 
   // Визначення категорії листа
@@ -178,9 +183,15 @@ export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListP
         <div className="p-4 border-b border-gray-200 flex-shrink-0 bg-white email-list-header">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Листи</h2>
-          <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
-            <MoreVertical className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <LabelManager
+              labels={labels}
+              onLabelUpdate={loadLabels}
+            />
+            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
+              <MoreVertical className="h-5 w-5" />
+            </button>
+          </div>
         </div>
         
         {/* Пошук */}

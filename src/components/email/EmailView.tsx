@@ -18,6 +18,8 @@ import {
 import { Email, EmailTemplate } from '@/lib/types';
 import { useEmailTemplates } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
+import LabelManager from './LabelManager';
+import EmailQuickActions from './EmailQuickActions';
 
 interface EmailViewProps {
   email: Email | null;
@@ -409,30 +411,19 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
           </div>
         </div>
         
-        {/* Мітки та категорії */}
-        <div className="flex items-center space-x-2">
-          <span className={cn(
-            'px-3 py-1 text-sm rounded-full',
-            getPriorityColor(displayEmail.priority)
-          )}>
-            {displayEmail.priority} пріоритет
-          </span>
+        {/* Управління мітками */}
+        <div className="flex items-center justify-between">
+          <EmailQuickActions
+            email={displayEmail}
+            onEmailUpdate={onEmailUpdate}
+            labels={[]} // TODO: передати реальні мітки з EmailList
+            onLabelUpdate={() => {}} // TODO: оновити мітки
+          />
           
-          <span className={cn(
-            'px-3 py-1 text-sm rounded-full',
-            getCategoryColor(displayEmail.category)
-          )}>
-            {displayEmail.category}
-          </span>
-          
-          {displayEmail.labels.map((label, index) => (
-            <span
-              key={index}
-              className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full"
-            >
-              {label}
-            </span>
-          ))}
+          <LabelManager
+            labels={[]} // TODO: передати реальні мітки з EmailList
+            onLabelUpdate={() => {}} // TODO: оновити мітки
+          />
         </div>
       </div>
 
