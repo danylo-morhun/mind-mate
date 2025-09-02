@@ -11,6 +11,7 @@ interface Document {
   category: string;
   template: string;
   content: string;
+  additionalContext?: string;
   tags: string[];
   collaborators: string[];
   visibility: 'private' | 'shared' | 'public';

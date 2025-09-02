@@ -16,6 +16,7 @@ interface DocumentFormData {
   category: string;
   template: string;
   content: string;
+  additionalContext: string;
   tags: string[];
   collaborators: string[];
   visibility: 'private' | 'shared' | 'public';
@@ -64,6 +65,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
     category: '',
     template: 'blank',
     content: '',
+    additionalContext: '',
     tags: [],
     collaborators: [],
     visibility: 'private',
@@ -106,27 +108,42 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
 
     setIsGenerating(true);
     try {
-      // TODO: Інтеграція з AI для генерації контенту
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Імітація AI запиту
+      // Інтеграція з Gemini API для генерації контенту
+      const response = await fetch('/api/documents/generate-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          template: formData.template,
+          description: formData.description,
+          category: formData.category,
+          type: formData.type,
+          additionalContext: formData.additionalContext
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate content');
+      }
+
+      const result = await response.json();
       
-      const generatedContent = `# ${formData.title}
-
-## Опис
-${formData.description || 'Автоматично згенерований контент'}
-
-## Основна частина
-Тут буде згенерований контент на основі вибраного шаблону та заголовку.
-
-## Висновки
-Документ готовий до редагування та налаштування.`;
-
-      setFormData(prev => ({ ...prev, content: generatedContent }));
+      if (result.success && result.content) {
+        setFormData(prev => ({ ...prev, content: result.content }));
+        console.log('Content generated successfully:', result.metadata);
+      } else {
+        throw new Error('No content received from AI');
+      }
     } catch (error) {
       console.error('Error generating content:', error);
+      alert(`Помилка при генерації контенту: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsGenerating(false);
     }
-  }, [formData.title, formData.template, formData.description]);
+  }, [formData.title, formData.template, formData.description, formData.category, formData.type, formData.additionalContext]);
 
   const handleSubmit = useCallback(() => {
     if (!formData.title.trim()) return;
@@ -155,6 +172,7 @@ ${formData.description || 'Автоматично згенерований ко�
       category: '',
       template: 'blank',
       content: '',
+      additionalContext: '',
       tags: [],
       collaborators: [],
       visibility: 'private',
@@ -335,8 +353,23 @@ ${formData.description || 'Автоматично згенерований ко�
                       {isGenerating ? 'Генеруємо...' : 'Згенерувати контент'}
                     </button>
                   </div>
+                  
+                  {/* Додатковий контекст для AI */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-blue-900 mb-2">
+                      Додатковий контекст для AI (необов'язково)
+                    </label>
+                    <textarea
+                      value={formData.additionalContext}
+                      onChange={(e) => handleInputChange('additionalContext', e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="Додайте додаткову інформацію, специфічні вимоги або контекст для кращої генерації..."
+                    />
+                  </div>
+                  
                   <p className="text-sm text-blue-700">
-                    Використайте AI для автоматичного створення структури та базового контенту документа
+                    Використайте AI для автоматичного створення структури та базового контенту документа на основі заголовку, опису та додаткового контексту
                   </p>
                 </div>
               )}
