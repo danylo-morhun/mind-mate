@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Search, Filter, MoreVertical, Star, StarOff, Archive, Trash2, Tag } from 'lucide-react';
+import { Mail, Search, Star } from 'lucide-react';
 import { Email, EmailCategory, EmailPriority } from '@/lib/types';
 import { useEmails } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
-import LabelManager from './LabelManager';
+import EmailListMenu from './EmailListMenu';
 
 interface EmailListProps {
   onEmailSelect: (email: Email) => void;
@@ -184,13 +184,10 @@ export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListP
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Листи</h2>
           <div className="flex items-center gap-2">
-            <LabelManager
+            <EmailListMenu
               labels={labels}
               onLabelUpdate={loadLabels}
             />
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
-              <MoreVertical className="h-5 w-5" />
-            </button>
           </div>
         </div>
         
