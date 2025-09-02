@@ -1,0 +1,35 @@
+{
+  "replies": [
+    {
+      "id": "1756836756108",
+      "timestamp": "2025-09-02T18:12:36.108Z",
+      "emailId": "1990b2f51f3392b7",
+      "emailSubject": "Security alert",
+      "replyType": "academic",
+      "tone": "professional",
+      "language": "uk",
+      "templateId": null,
+      "customInstructions": null,
+      "generationTime": 2.6,
+      "success": true,
+      "modelUsed": "gemini-1.5-flash",
+      "replyLength": 703,
+      "userId": "danymorhun@gmail.com"
+    }
+  ],
+  "templates": [],
+  "stats": {
+    "totalRepliesGenerated": 1,
+    "repliesByType": {
+      "academic": 1
+    },
+    "repliesByTone": {
+      "professional": 1
+    },
+    "averageGenerationTime": 2.6,
+    "templatesUsed": 0,
+    "aiOnlyGeneration": 1,
+    "successRate": 100,
+    "lastUpdated": "2025-09-02T18:12:36.108Z"
+  }
+}

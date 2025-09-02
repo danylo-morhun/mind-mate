@@ -164,6 +164,8 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
     if (!fullEmail) return;
     
     setIsGeneratingReply(true);
+    const startTime = Date.now();
+    
     try {
       const response = await fetch('/api/ai/generate-reply', {
         method: 'POST',
@@ -185,17 +187,100 @@ export default function EmailView({ email, onEmailUpdate }: EmailViewProps) {
       if (response.ok) {
         const data = await response.json();
         setReplyText(data.reply);
+        
+        // Зберігаємо статистику AI відповіді
+        const generationTime = (Date.now() - startTime) / 1000; // в секундах
+        
+        try {
+          await fetch('/api/analytics/ai-reply', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              emailId: fullEmail.id,
+              emailSubject: fullEmail.subject,
+              replyType,
+              tone: replyTone,
+              language: replyLanguage,
+              templateId: selectedTemplate || null,
+              customInstructions: customInstructions || null,
+              generationTime,
+              success: true,
+              modelUsed: data.modelUsed || 'gemini-1.5-flash',
+              replyLength: data.reply?.length || 0,
+            }),
+          });
+        } catch (analyticsError) {
+          console.error('Failed to save AI analytics:', analyticsError);
+          // Не блокуємо основну функціональність, якщо статистика не збереглася
+        }
+        
       } else {
         console.error('Помилка генерації AI відповіді');
         // Fallback до mock відповіді
         const mockReply = `Дякую за ваше повідомлення про "${fullEmail.subject}".\n\nЯ обов'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.\n\nЗ повагою,\nMind Mate AI`;
         setReplyText(mockReply);
+        
+        // Зберігаємо статистику про невдалу спробу
+        const generationTime = (Date.now() - startTime) / 1000;
+        
+        try {
+          await fetch('/api/analytics/ai-reply', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              emailId: fullEmail.id,
+              emailSubject: fullEmail.subject,
+              replyType,
+              tone: replyTone,
+              language: replyLanguage,
+              templateId: selectedTemplate || null,
+              customInstructions: customInstructions || null,
+              generationTime,
+              success: false,
+              modelUsed: 'error',
+              replyLength: 0,
+            }),
+          });
+        } catch (analyticsError) {
+          console.error('Failed to save AI analytics error:', analyticsError);
+        }
       }
     } catch (error) {
       console.error('Помилка генерації відповіді:', error);
       // Fallback до mock відповіді
       const mockReply = `Дякую за ваше повідомлення про "${fullEmail.subject}".\n\nЯ обов'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.\n\nЗ повагою,\nMind Mate AI`;
       setReplyText(mockReply);
+      
+      // Зберігаємо статистику про помилку
+      const generationTime = (Date.now() - startTime) / 1000;
+      
+      try {
+        await fetch('/api/analytics/ai-reply', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            emailId: fullEmail.id,
+            emailSubject: fullEmail.subject,
+            replyType,
+            tone: replyTone,
+            language: replyLanguage,
+            templateId: selectedTemplate || null,
+            customInstructions: customInstructions || null,
+            generationTime,
+            success: false,
+            modelUsed: 'error',
+            replyLength: 0,
+          }),
+        });
+      } catch (analyticsError) {
+        console.error('Failed to save AI analytics error:', analyticsError);
+      }
     } finally {
       setIsGeneratingReply(false);
     }
