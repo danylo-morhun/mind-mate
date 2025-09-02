@@ -22,6 +22,7 @@ import { useDocuments } from '@/contexts/DocumentsContext';
 import DocumentList from '@/components/documents/DocumentList';
 import CreateDocumentModal from '@/components/documents/CreateDocumentModal';
 import EditDocumentModal from '@/components/documents/EditDocumentModal';
+import ViewDocumentModal from '@/components/documents/ViewDocumentModal';
 
 export default function DocumentsPage() {
   const { 
@@ -44,6 +45,8 @@ export default function DocumentsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedDocumentForEdit, setSelectedDocumentForEdit] = useState<any>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedDocumentForView, setSelectedDocumentForView] = useState<any>(null);
 
   const categories = [
     { id: 'all', name: 'Всі категорії', icon: FolderOpen, color: 'text-gray-600' },
@@ -89,8 +92,8 @@ export default function DocumentsPage() {
 
   // Обробники подій
   const handleDocumentSelect = (document: any) => {
-    selectDocument(document);
-    // TODO: Відкрити модальне вікно перегляду документа
+    setSelectedDocumentForView(document);
+    setIsViewModalOpen(true);
   };
 
   const handleDocumentEdit = (document: any) => {
@@ -127,6 +130,13 @@ export default function DocumentsPage() {
     } catch (error) {
       alert('Помилка при оновленні документа');
     }
+  };
+
+  const handleViewToEdit = (document: any) => {
+    setIsViewModalOpen(false);
+    setSelectedDocumentForView(null);
+    setSelectedDocumentForEdit(document);
+    setIsEditModalOpen(true);
   };
 
   const handleDocumentShare = (document: any) => {
@@ -282,6 +292,17 @@ export default function DocumentsPage() {
         }}
         onSave={handleEditDocument}
         document={selectedDocumentForEdit}
+      />
+
+      {/* Модальне вікно перегляду документа */}
+      <ViewDocumentModal
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedDocumentForView(null);
+        }}
+        onEdit={handleViewToEdit}
+        document={selectedDocumentForView}
       />
     </div>
   );
