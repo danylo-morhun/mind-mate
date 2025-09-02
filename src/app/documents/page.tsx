@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useDocuments } from '@/contexts/DocumentsContext';
 import DocumentList from '@/components/documents/DocumentList';
+import CreateDocumentModal from '@/components/documents/CreateDocumentModal';
 
 export default function DocumentsPage() {
   const { 
@@ -39,6 +40,7 @@ export default function DocumentsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [starredDocuments, setStarredDocuments] = useState<string[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const categories = [
     { id: 'all', name: 'Всі категорії', icon: FolderOpen, color: 'text-gray-600' },
@@ -99,8 +101,17 @@ export default function DocumentsPage() {
         await deleteDocument(documentId);
         alert('Документ успішно видалено!');
       } catch (error) {
-        alert('Помилка видалення документа');
+        alert('Помилка при видаленні документа');
       }
+    }
+  };
+
+  const handleCreateDocument = async (documentData: any) => {
+    try {
+      await createDocument(documentData);
+      alert('Документ успішно створено!');
+    } catch (error) {
+      alert('Помилка при створенні документа');
     }
   };
 
@@ -122,10 +133,7 @@ export default function DocumentsPage() {
     );
   };
 
-  const handleCreateDocument = () => {
-    // TODO: Відкрити модальне вікно створення документа
-    alert('Функція створення документа буде реалізована в наступному кроці');
-  };
+
 
   // Отримання відфільтрованих документів
   const filteredDocuments = getFilteredDocuments();
@@ -140,7 +148,7 @@ export default function DocumentsPage() {
             <p className="text-gray-600 mt-1">Управління документами та матеріалами</p>
           </div>
           <button 
-            onClick={handleCreateDocument}
+            onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="h-5 w-5" />
@@ -243,6 +251,13 @@ export default function DocumentsPage() {
           />
         </div>
       </div>
+
+      {/* Модальне вікно створення документа */}
+      <CreateDocumentModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreateDocument={handleCreateDocument}
+      />
     </div>
   );
 }

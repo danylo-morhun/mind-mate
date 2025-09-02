@@ -163,23 +163,27 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Створення документа
-  const createDocument = useCallback(async (document: Omit<Document, 'id' | 'createdDate' | 'lastModified'>): Promise<Document> => {
+  const createDocument = useCallback(async (documentData: any): Promise<Document> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
       // TODO: Замінити на реальний API запит
-      const response = await fetch('/api/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(document),
-      });
+      const newDocument = {
+        id: `doc_${Date.now()}`,
+        ...documentData,
+        createdDate: new Date(),
+        lastModified: new Date(),
+        status: 'draft',
+        owner: 'current_user',
+        version: '1.0',
+        metadata: {
+          lastAccessed: new Date(),
+          accessCount: 0,
+          favoriteCount: 0
+        }
+      };
       
-      if (!response.ok) {
-        throw new Error('Failed to create document');
-      }
-      
-      const newDocument = await response.json();
       dispatch({ type: 'ADD_DOCUMENT', payload: newDocument });
       return newDocument;
     } catch (error) {
