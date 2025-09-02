@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getGeminiClient } from '@/lib/ai/gemini-client';
+import { buildGeminiPrompt } from '@/lib/ai/prompt-builder';
+import { validateReplyType, validateReplyTone, validateLanguage } from '@/lib/ai/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,26 +35,80 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Тут буде інтеграція з Google AI API
-    // Поки що використовуємо mock AI відповідь
-    const aiReply = await generateMockAIReply({
-      emailContent,
-      emailSubject,
-      emailFrom,
-      replyType,
-      templateId,
-      customInstructions,
-      tone,
-      language
-    });
+    // Валідація параметрів
+    if (!validateReplyType(replyType)) {
+      return NextResponse.json(
+        { error: 'Invalid reply type' },
+        { status: 400 }
+      );
+    }
+
+    if (!validateReplyTone(tone)) {
+      return NextResponse.json(
+        { error: 'Invalid reply tone' },
+        { status: 400 }
+      );
+    }
+
+    if (!validateLanguage(language)) {
+      return NextResponse.json(
+        { error: 'Invalid language' },
+        { status: 400 }
+      );
+    }
+
+    let aiReply: string;
+    let modelUsed = 'mock-ai-fallback';
+    let errorMessage = null;
+
+    try {
+      // Спробуємо використати Gemini API
+      const geminiClient = getGeminiClient();
+      
+      // Будуємо prompt для Gemini
+      const promptContext = buildGeminiPrompt({
+        emailContent,
+        emailSubject,
+        emailFrom,
+        replyType,
+        templateId,
+        customInstructions,
+        tone,
+        language
+      });
+
+      // Генеруємо відповідь через Gemini
+      aiReply = await geminiClient.generateReply(promptContext.fullPrompt);
+      modelUsed = 'gemini-pro';
+      
+      console.log('Gemini API success - Model:', modelUsed, 'Tokens:', aiReply.length);
+      
+    } catch (geminiError) {
+      console.error('Gemini API failed, falling back to mock:', geminiError);
+      errorMessage = `Gemini API недоступний: ${geminiError}`;
+      
+      // Fallback до mock AI
+      aiReply = await generateMockAIReply({
+        emailContent,
+        emailSubject,
+        emailFrom,
+        replyType,
+        templateId,
+        customInstructions,
+        tone,
+        language
+      });
+    }
 
     return NextResponse.json({
       success: true,
       reply: aiReply,
       metadata: {
         generatedAt: new Date().toISOString(),
-        model: 'mock-ai-model',
-        tokens: aiReply.length
+        model: modelUsed,
+        tokens: aiReply.length,
+        error: errorMessage,
+        promptLength: promptContext?.fullPrompt?.length || 0
       }
     });
 
