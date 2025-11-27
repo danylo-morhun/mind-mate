@@ -58,26 +58,67 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const supabase = createServerClient();
     
+    // Map frontend type values to database type values
+    const typeMapping: Record<string, 'doc' | 'sheet' | 'slide' | 'pdf' | 'drawing' | 'form'> = {
+      'document': 'doc',
+      'lecture': 'doc',
+      'spreadsheet': 'sheet',
+      'presentation': 'slide',
+      'other': 'doc',
+      // Also handle if already in correct format
+      'doc': 'doc',
+      'sheet': 'sheet',
+      'slide': 'slide',
+      'pdf': 'pdf',
+      'drawing': 'drawing',
+      'form': 'form'
+    };
+    
+    // Map frontend category values to database category values
+    const categoryMapping: Record<string, 'lectures' | 'methodics' | 'reports' | 'presentations' | 'plans' | 'assignments' | 'syllabi' | 'other'> = {
+      'Навчальні матеріали': 'lectures',
+      'Методичні вказівки': 'methodics',
+      'Лабораторні роботи': 'assignments',
+      'Курсові роботи': 'assignments',
+      'Дипломні роботи': 'assignments',
+      'Наукові статті': 'reports',
+      'Звіти': 'reports',
+      'Інше': 'other',
+      // Also handle if already in correct format
+      'lectures': 'lectures',
+      'methodics': 'methodics',
+      'reports': 'reports',
+      'presentations': 'presentations',
+      'plans': 'plans',
+      'assignments': 'assignments',
+      'syllabi': 'syllabi',
+      'other': 'other'
+    };
+    
+    // Get mapped values or use defaults
+    const dbType = typeMapping[body.type] || 'doc';
+    const dbCategory = categoryMapping[body.category] || (body.category && categoryMapping[body.category] ? body.category : 'other');
+    
     // Prepare document data for database
     const documentData = {
       title: body.title,
-      content: body.content,
-      type: body.type,
-      category: body.category,
+      content: body.content || '',
+      type: dbType,
+      category: dbCategory,
       author: body.author || userId,
       collaborators: body.collaborators || [],
       version: 1,
       tags: body.tags || [],
-      status: 'draft' as const,
+      status: (body.status || 'draft') as const,
       permissions: {
         canView: [userId],
         canEdit: [userId],
         canComment: [userId],
         canShare: [userId],
-        isPublic: false
+        isPublic: body.visibility === 'public' || false
       },
       metadata: {
-        subject: body.metadata?.subject || 'Загальний',
+        subject: body.metadata?.subject || body.description || 'Загальний',
         semester: body.metadata?.semester || '1',
         academicYear: body.metadata?.academicYear || '2024-2025',
         department: body.metadata?.department || 'Загальний',
@@ -86,9 +127,10 @@ export async function POST(request: NextRequest) {
         wordCount: body.content?.length || 0,
         pageCount: Math.ceil((body.content?.length || 0) / 300),
         lastAccessed: new Date().toISOString(),
-        accessCount: 0
+        accessCount: body.metadata?.accessCount || 0,
+        favoriteCount: body.metadata?.favoriteCount || 0
       },
-      ai_generated: body.aiGenerated || false,
+      ai_generated: !!(body.aiGenerated || body.ai_generated),
       template_id: body.templateId || null,
       user_id: userId
     };
@@ -103,7 +145,11 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating document in Supabase:', error);
       return NextResponse.json(
-        { error: 'Failed to create document' },
+        { 
+          error: 'Failed to create document',
+          details: error.message,
+          code: error.code
+        },
         { status: 500 }
       );
     }

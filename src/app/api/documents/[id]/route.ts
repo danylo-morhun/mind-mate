@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Document } from '@/lib/types';
 import { getCurrentUserId, transformDocument } from '@/lib/supabase/utils';
 import { createServerClient } from '@/lib/supabase/server';
-import { addMockVersion } from '@/lib/mock-versions';
 
 export async function GET(
   request: NextRequest,
@@ -138,35 +137,8 @@ export async function PUT(
 
     const transformedDoc = transformDocument(updatedDocument);
 
-    // Create version history if needed (still using mock for now, can be migrated to Supabase later)
-    if (shouldCreateVersion) {
-      const changes: string[] = [];
-      if (hasTitleChanges) changes.push(`Оновлено заголовок: "${existingDoc.title}" → "${transformedDoc.title}"`);
-      if (hasContentChanges) {
-        const oldLength = existingDoc.content.length;
-        const newLength = transformedDoc.content.length;
-        if (newLength > oldLength) {
-          changes.push(`Додано ${newLength - oldLength} символів до контенту`);
-        } else if (newLength < oldLength) {
-          changes.push(`Видалено ${oldLength - newLength} символів з контенту`);
-        } else {
-          changes.push('Оновлено контент');
-        }
-      }
-      if (body.changes && Array.isArray(body.changes)) {
-        changes.push(...body.changes);
-      }
-      
-      addMockVersion({
-        documentId: id,
-        version: newVersion,
-        timestamp: new Date(),
-        author: body.author || transformedDoc.author,
-        changes: changes.length > 0 ? changes : ['Оновлено документ'],
-        content: transformedDoc.content,
-        title: transformedDoc.title
-      });
-    }
+    // Version history can be stored in database later if needed
+    // For now, we just track the version number in the document
 
     return NextResponse.json(transformedDoc);
   } catch (error) {
