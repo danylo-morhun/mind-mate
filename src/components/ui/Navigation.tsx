@@ -46,9 +46,7 @@ export default function Navigation() {
 
       {/* User menu and notifications */}
       <div className="hidden lg:flex lg:items-center lg:space-x-4">
-        <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
-          <Bell className="h-5 w-5" />
-        </button>
+        
         
         {/* Auth button */}
         <SignInButton />
