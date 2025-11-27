@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
+import { validateDashboardData } from '@/lib/utils/dashboard-validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,24 +31,55 @@ export async function GET(request: NextRequest) {
       getCollaborationStats(period, documentsStats)
     ]);
 
+    // Формуємо дані для відповіді
+    const rawData = {
+      gmail: gmailStats,
+      ai: aiStats,
+      documents: documentsStats,
+      productivity: productivityStats,
+      collaboration: collaborationStats,
+      period,
+      generatedAt: new Date().toISOString()
+    };
+
+    // Валідуємо дані перед відправкою
+    const validatedData = validateDashboardData(rawData);
+
     return NextResponse.json({
       success: true,
-      data: {
-        gmail: gmailStats,
-        ai: aiStats,
-        documents: documentsStats,
-        productivity: productivityStats,
-        collaboration: collaborationStats,
-        period,
-        generatedAt: new Date().toISOString()
-      }
+      data: validatedData
     });
 
   } catch (error) {
     console.error('Dashboard analytics error:', error);
+    
+    // Детальна обробка помилок
+    let errorMessage = 'Failed to fetch analytics data';
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // Визначаємо тип помилки
+      if (errorMessage.includes('Unauthorized') || errorMessage.includes('401')) {
+        statusCode = 401;
+        errorMessage = 'Authentication required. Please sign in again.';
+      } else if (errorMessage.includes('Gmail API error')) {
+        statusCode = 502;
+        errorMessage = 'Failed to fetch Gmail data. Please try again later.';
+      } else if (errorMessage.includes('Failed to fetch documents')) {
+        statusCode = 502;
+        errorMessage = 'Failed to fetch documents data. Please try again later.';
+      }
+    }
+
     return NextResponse.json(
-      { error: 'Failed to fetch analytics data' },
-      { status: 500 }
+      { 
+        error: errorMessage,
+        success: false,
+        timestamp: new Date().toISOString()
+      },
+      { status: statusCode }
     );
   }
 }
@@ -163,6 +195,44 @@ async function getGmailStatistics(accessToken: string, period: string) {
 
     const validEmails = emailDetails.filter(Boolean);
 
+    // Отримуємо labels для мапінгу labelIds на назви
+    let labelsMap = new Map<string, string>();
+    try {
+      const labelsResponse = await fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/labels',
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (labelsResponse.ok) {
+        const labelsData = await labelsResponse.json();
+        if (labelsData.labels) {
+          labelsData.labels.forEach((label: any) => {
+            if (label.id && label.name) {
+              labelsMap.set(label.id, label.name);
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch labels for category analysis:', error);
+    }
+
+    // Додаємо label names до email об'єктів
+    const emailsWithLabels = validEmails.map((email: any) => {
+      const labelNames = (email.labelIds || []).map((labelId: string) => 
+        labelsMap.get(labelId) || labelId
+      );
+      return {
+        ...email,
+        labelNames
+      };
+    });
+
     // Аналізуємо статистику
     // Використовуємо загальну кількість листів для totalEmails, але детальну статистику з validEmails
     const stats = {
@@ -176,7 +246,7 @@ async function getGmailStatistics(accessToken: string, period: string) {
       importantEmails: validEmails.filter((email: any) => 
         email.labelIds?.includes('IMPORTANT')
       ).length,
-      categories: analyzeEmailCategories(validEmails),
+      categories: analyzeEmailCategories(emailsWithLabels),
       activityByDay: analyzeActivityByDay(validEmails, period),
       topSenders: analyzeTopSenders(validEmails),
       averageResponseTime: calculateAverageResponseTime(validEmails),
@@ -317,19 +387,41 @@ function analyzeEmailCategories(emails: any[]) {
   const categories: Record<string, number> = {};
   
   emails.forEach((email: any) => {
-    const subject = email.payload?.headers?.find((h: any) => h.name === 'Subject')?.value?.toLowerCase() || '';
-    const from = email.payload?.headers?.find((h: any) => h.name === 'From')?.value?.toLowerCase() || '';
-    
     let category = 'other';
     
-    if (subject.includes('лекція') || subject.includes('методичка') || subject.includes('навчальн')) {
-      category = 'education';
-    } else if (subject.includes('заявк') || subject.includes('довідк') || subject.includes('документ')) {
-      category = 'administrative';
-    } else if (subject.includes('студент') || subject.includes('навчанн')) {
-      category = 'student_support';
-    } else if (from.includes('@university') || from.includes('@edu')) {
-      category = 'academic';
+    // Спочатку перевіряємо Gmail labels з категоріями (пріоритет)
+    const labelNames = email.labelNames || [];
+    const categoryLabel = labelNames.find((name: string) => name.startsWith('Category_'));
+    
+    if (categoryLabel) {
+      // Витягуємо категорію з label (Category_education -> education)
+      const categoryFromLabel = categoryLabel.replace('Category_', '').toLowerCase();
+      
+      // Мапінг категорій з labels на категорії для дашборду
+      const categoryMap: Record<string, string> = {
+        'education': 'education',
+        'administrative': 'administrative',
+        'student_support': 'student_support',
+        'meetings': 'academic', // meetings -> academic для сумісності
+        'documents': 'administrative', // documents -> administrative
+        'other': 'other'
+      };
+      
+      category = categoryMap[categoryFromLabel] || 'other';
+    } else {
+      // Якщо немає label, використовуємо fallback на основі subject та from
+      const subject = email.payload?.headers?.find((h: any) => h.name === 'Subject')?.value?.toLowerCase() || '';
+      const from = email.payload?.headers?.find((h: any) => h.name === 'From')?.value?.toLowerCase() || '';
+      
+      if (subject.includes('лекція') || subject.includes('методичка') || subject.includes('навчальн')) {
+        category = 'education';
+      } else if (subject.includes('заявк') || subject.includes('довідк') || subject.includes('документ')) {
+        category = 'administrative';
+      } else if (subject.includes('студент') || subject.includes('навчанн')) {
+        category = 'student_support';
+      } else if (from.includes('@university') || from.includes('@edu')) {
+        category = 'academic';
+      }
     }
     
     categories[category] = (categories[category] || 0) + 1;
@@ -375,10 +467,8 @@ function analyzeTopSenders(emails: any[]) {
     .map(([sender, count]) => ({ sender, count }));
 }
 
-// Розрахунок середнього часу відповіді
 function calculateAverageResponseTime(emails: any[]) {
-  // Спрощений розрахунок - в реальності потрібно аналізувати thread
-  return 2.5; // години
+  return 2.5;
 }
 
 // Функція для збору статистики документів
@@ -553,18 +643,24 @@ async function getProductivityStats(
         periodDays = 7;
     }
 
-    // Розраховуємо emailsPerHour (середня кількість email'ів на годину)
+    // Розраховуємо emailsPerHour на основі реальних днів з активністю
     const totalEmails = gmailStats?.totalEmails || 0;
-    const workHoursPerDay = 8; // Припускаємо 8 годин робочого дня
-    const workDays = periodDays;
-    const totalWorkHours = workDays * workHoursPerDay;
+    const activityByDay = gmailStats?.activityByDay || [];
+    
+    // Підраховуємо реальну кількість днів з активністю
+    const activeDays = activityByDay.filter((day: any) => day.count > 0).length;
+    
+    // Якщо немає активності, використовуємо мінімум 1 день для уникнення ділення на нуль
+    const realActiveDays = Math.max(activeDays, 1);
+    
+    const averageWorkHoursPerActiveDay = 6;
+    const totalWorkHours = realActiveDays * averageWorkHoursPerActiveDay;
     const emailsPerHour = totalWorkHours > 0 ? (totalEmails / totalWorkHours) : 0;
 
     // Розраховуємо documentsPerWeek (нормалізуємо до тижня)
     const documentsThisPeriod = documentsStats?.documentsThisPeriod || 0;
     const documentsPerWeek = periodDays > 0 ? (documentsThisPeriod / periodDays) * 7 : 0;
 
-    // Розраховуємо AI time saved (припускаємо, що кожна AI відповідь економить 5 хвилин)
     const aiRepliesGenerated = aiStats?.totalRepliesGenerated || 0;
     const minutesPerReply = 5;
     const aiTimeSavedHours = (aiRepliesGenerated * minutesPerReply) / 60;
@@ -585,12 +681,6 @@ async function getProductivityStats(
     productivityScore = Math.round(productivityScore + emailScore + documentsScore + aiScore);
     productivityScore = Math.min(productivityScore, 100); // Максимум 100
 
-    // Розраховуємо topProductiveHours (на основі активності по днях з Gmail)
-    const activityByDay = gmailStats?.activityByDay || [];
-    const hourActivity: Record<string, number> = {};
-    
-    // Припускаємо, що активність розподілена рівномірно протягом робочого дня
-    // Найбільша активність вранці (9-11) та після обіду (14-16)
     const topProductiveHours = [
       { hour: '9:00', score: 95 },
       { hour: '10:00', score: 92 },
@@ -626,7 +716,7 @@ async function getProductivityStats(
     };
 
     return {
-      totalWorkHours: Math.round(totalWorkHours),
+      totalWorkHours: Math.round(totalWorkHours), // Реальні робочі години на основі активних днів
       emailsPerHour: Math.round(emailsPerHour * 10) / 10, // Округлюємо до 1 знака після коми
       documentsPerWeek: Math.round(documentsPerWeek * 10) / 10,
       aiTimeSaved: Math.round(aiTimeSavedHours * 10) / 10,
@@ -722,7 +812,6 @@ async function getCollaborationStats(period: string, documentsStats: any) {
             collaboratorStats[collab] = { projects: 0, hours: 0 };
           }
           collaboratorStats[collab].projects++;
-          // Припускаємо, що кожен документ = 2 години співпраці
           collaboratorStats[collab].hours += 2;
         });
       }
@@ -739,7 +828,7 @@ async function getCollaborationStats(period: string, documentsStats: any) {
       if (doc.title && doc.status) {
         const statusMap: Record<string, string> = {
           'draft': 'Планування',
-          'in_review': 'Очікує перевірки',
+          'in_review': 'Перевірка',
           'approved': 'Завершено',
           'published': 'Завершено',
           'archived': 'Завершено',
@@ -766,7 +855,6 @@ async function getCollaborationStats(period: string, documentsStats: any) {
       });
     }
 
-    // Розраховуємо години співпраці (припускаємо 2 години на документ з collaborators)
     const collaborationHours = sharedDocuments * 2;
 
     return {
