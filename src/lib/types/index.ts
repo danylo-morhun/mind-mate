@@ -79,6 +79,8 @@ export interface Document {
   metadata: DocumentMetadata;
   aiGenerated: boolean;
   templateId?: string;
+  googleDocId?: string;
+  googleDocUrl?: string;
 }
 
 export type DocumentType = 
