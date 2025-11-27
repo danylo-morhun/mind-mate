@@ -37,18 +37,20 @@ interface EditDocumentModalProps {
 
 interface DocumentVersion {
   id: string;
-  version: string;
-  timestamp: Date;
+  version: number | string;
+  timestamp: Date | string;
   author: string;
   changes: string[];
   content: string;
+  title?: string;
 }
 
 interface DocumentComment {
   id: string;
+  documentId?: string;
   author: string;
   content: string;
-  timestamp: Date;
+  timestamp: Date | string;
   replies?: DocumentComment[];
 }
 
@@ -63,41 +65,64 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
   const [isImproving, setIsImproving] = useState(false);
   const [improvementContext, setImprovementContext] = useState('');
 
-  // Mock data для версій та коментарів
-  const [versions] = useState<DocumentVersion[]>([
-    {
-      id: 'v1',
-      version: '1.0',
-      timestamp: new Date(Date.now() - 86400000), // 1 день тому
-      author: 'current_user',
-      changes: ['Створено документ', 'Додано базовий контент'],
-      content: 'Початковий контент документа'
-    }
-  ]);
-
-  const [comments] = useState<DocumentComment[]>([
-    {
-      id: 'c1',
-      author: 'current_user',
-      content: 'Документ потребує доопрацювання в розділі "Методика"',
-      timestamp: new Date(Date.now() - 3600000), // 1 година тому
-      replies: [
-        {
-          id: 'r1',
-          author: 'collaborator@example.com',
-          content: 'Погоджуюсь, давайте розширимо цей розділ',
-          timestamp: new Date(Date.now() - 1800000) // 30 хв тому
-        }
-      ]
-    }
-  ]);
+  // Стан для версій та коментарів
+  const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [comments, setComments] = useState<DocumentComment[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState('');
 
   // Ініціалізація форми при відкритті
   useEffect(() => {
     if (document) {
       setFormData({ ...document });
+      // Завантажуємо коментарі та версії
+      loadComments();
+      loadVersions();
     }
   }, [document]);
+
+  // Завантаження коментарів
+  const loadComments = async () => {
+    if (!document) return;
+    
+    setIsLoadingComments(true);
+    try {
+      const response = await fetch(`/api/documents/${document.id}/comments`);
+      if (response.ok) {
+        const data = await response.json();
+        setComments(data);
+      }
+    } catch (error) {
+      console.error('Error loading comments:', error);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  // Завантаження версій
+  const loadVersions = async () => {
+    if (!document) return;
+    
+    setIsLoadingVersions(true);
+    try {
+      const response = await fetch(`/api/documents/${document.id}/versions`);
+      if (response.ok) {
+        const data = await response.json();
+        // Конвертуємо версію з числа в рядок для сумісності з UI
+        const formattedVersions = data.map((v: any) => ({
+          ...v,
+          version: v.version.toString()
+        }));
+        setVersions(formattedVersions);
+      }
+    } catch (error) {
+      console.error('Error loading versions:', error);
+    } finally {
+      setIsLoadingVersions(false);
+    }
+  };
 
   const handleInputChange = useCallback((field: keyof Document, value: string | string[]) => {
     if (formData) {
@@ -131,12 +156,64 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
     }
   }, [formData]);
 
-  const handleAddComment = useCallback(() => {
-    if (newComment.trim()) {
-      // TODO: Додати коментар до API
-      setNewComment('');
+  const handleAddComment = useCallback(async () => {
+    if (!newComment.trim() || !document) return;
+    
+    try {
+      const response = await fetch(`/api/documents/${document.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: newComment.trim(),
+          author: document.author || 'Поточний користувач'
+        }),
+      });
+
+      if (response.ok) {
+        const newCommentData = await response.json();
+        setComments(prev => [...prev, newCommentData]);
+        setNewComment('');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      alert(`Помилка при додаванні коментаря: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     }
-  }, [newComment]);
+  }, [newComment, document]);
+
+  const handleAddReply = useCallback(async (commentId: string) => {
+    if (!replyContent.trim() || !document) return;
+    
+    try {
+      const response = await fetch(`/api/documents/${document.id}/comments/${commentId}/replies`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: replyContent.trim(),
+          author: document.author || 'Поточний користувач'
+        }),
+      });
+
+      if (response.ok) {
+        const updatedComment = await response.json();
+        setComments(prev => prev.map(c => c.id === commentId ? updatedComment : c));
+        setReplyContent('');
+        setReplyingTo(null);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add reply');
+      }
+    } catch (error) {
+      console.error('Error adding reply:', error);
+      alert(`Помилка при додаванні відповіді: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+    }
+  }, [replyContent, document]);
 
   const handleImproveContentWithAI = useCallback(async () => {
     if (!formData || !formData.title) return;
@@ -454,40 +531,48 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Історія версій</h3>
               
-              <div className="space-y-4">
-                {versions.map((version) => (
-                  <div key={version.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                          v{version.version}
+              {isLoadingVersions ? (
+                <div className="text-center py-8 text-gray-500">Завантаження версій...</div>
+              ) : versions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">Поки що немає версій</div>
+              ) : (
+                <div className="space-y-4">
+                  {versions.map((version) => (
+                    <div key={version.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            v{version.version}
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            {formatDate(typeof version.timestamp === 'string' ? new Date(version.timestamp) : version.timestamp)}
+                          </span>
                         </div>
-                        <span className="text-sm text-gray-500">
-                          {formatDate(version.timestamp)}
-                        </span>
+                        <div className="flex items-center space-x-2 text-sm text-gray-500">
+                          <User className="w-4 h-4" />
+                          <span>{version.author}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500">
-                        <User className="w-4 h-4" />
-                        <span>{version.author}</span>
+                      
+                      {version.changes && version.changes.length > 0 && (
+                        <div className="mb-3">
+                          <h4 className="font-medium text-gray-900 mb-2">Зміни:</h4>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                            {version.changes.map((change, index) => (
+                              <li key={index}>{change}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      <div className="bg-gray-50 p-3 rounded border">
+                        <h4 className="font-medium text-gray-900 mb-2">Контент версії:</h4>
+                        <p className="text-sm text-gray-600 line-clamp-3">{version.content}</p>
                       </div>
                     </div>
-                    
-                    <div className="mb-3">
-                      <h4 className="font-medium text-gray-900 mb-2">Зміни:</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                        {version.changes.map((change, index) => (
-                          <li key={index}>{change}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    
-                    <div className="bg-gray-50 p-3 rounded border">
-                      <h4 className="font-medium text-gray-900 mb-2">Контент версії:</h4>
-                      <p className="text-sm text-gray-600 line-clamp-3">{version.content}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -509,53 +594,100 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
                   <div className="flex justify-end">
                     <button
                       onClick={handleAddComment}
-                      disabled={!newComment.trim()}
+                      disabled={!newComment.trim() || isLoadingComments}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      Додати коментар
+                      {isLoadingComments ? 'Додаємо...' : 'Додати коментар'}
                     </button>
                   </div>
                 </div>
               </div>
 
               {/* Comments list */}
-              <div className="space-y-4">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="font-medium text-gray-900">{comment.author}</span>
-                          <span className="text-sm text-gray-500">
-                            {formatDate(comment.timestamp)}
-                          </span>
+              {isLoadingComments ? (
+                <div className="text-center py-8 text-gray-500">Завантаження коментарів...</div>
+              ) : comments.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">Поки що немає коментарів</div>
+              ) : (
+                <div className="space-y-4">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="w-4 h-4 text-blue-600" />
                         </div>
-                        <p className="text-gray-700 mb-3">{comment.content}</p>
-                        
-                        {/* Replies */}
-                        {comment.replies && comment.replies.length > 0 && (
-                          <div className="ml-6 space-y-3">
-                            {comment.replies.map((reply) => (
-                              <div key={reply.id} className="border-l-2 border-gray-200 pl-4">
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <span className="font-medium text-gray-900">{reply.author}</span>
-                                  <span className="text-sm text-gray-500">
-                                    {formatDate(reply.timestamp)}
-                                  </span>
-                                </div>
-                                <p className="text-gray-700">{reply.content}</p>
-                              </div>
-                            ))}
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="font-medium text-gray-900">{comment.author}</span>
+                            <span className="text-sm text-gray-500">
+                              {formatDate(typeof comment.timestamp === 'string' ? new Date(comment.timestamp) : comment.timestamp)}
+                            </span>
                           </div>
-                        )}
+                          <p className="text-gray-700 mb-3">{comment.content}</p>
+                          
+                          {/* Reply button */}
+                          {replyingTo !== comment.id && (
+                            <button
+                              onClick={() => setReplyingTo(comment.id)}
+                              className="text-sm text-blue-600 hover:text-blue-800 mb-3"
+                            >
+                              Відповісти
+                            </button>
+                          )}
+                          
+                          {/* Reply form */}
+                          {replyingTo === comment.id && (
+                            <div className="ml-6 mb-3 space-y-2">
+                              <textarea
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                rows={2}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Напишіть відповідь..."
+                              />
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleAddReply(comment.id)}
+                                  disabled={!replyContent.trim()}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                                >
+                                  Відправити
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setReplyingTo(null);
+                                    setReplyContent('');
+                                  }}
+                                  className="px-3 py-1 text-gray-600 hover:text-gray-800 transition-colors text-sm"
+                                >
+                                  Скасувати
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Replies */}
+                          {comment.replies && comment.replies.length > 0 && (
+                            <div className="ml-6 space-y-3 mt-3">
+                              {comment.replies.map((reply) => (
+                                <div key={reply.id} className="border-l-2 border-gray-200 pl-4">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <span className="font-medium text-gray-900">{reply.author}</span>
+                                    <span className="text-sm text-gray-500">
+                                      {formatDate(typeof reply.timestamp === 'string' ? new Date(reply.timestamp) : reply.timestamp)}
+                                    </span>
+                                  </div>
+                                  <p className="text-gray-700">{reply.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
