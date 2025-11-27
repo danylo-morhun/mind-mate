@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Mail, Search, Star } from 'lucide-react';
 import { Email, EmailCategory, EmailPriority } from '@/lib/types';
 import { useEmails } from '@/contexts/AppContext';
@@ -15,17 +15,29 @@ interface EmailListProps {
 export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListProps) {
   const { emails, setEmails } = useEmails();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [labels, setLabels] = useState<any[]>([]);
   const [selectedLabel, setSelectedLabel] = useState<string>('all');
 
-  // Завантаження листів та міток
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     loadEmails();
     loadLabels();
-  }, [searchQuery, selectedCategory, selectedPriority, selectedLabel]);
+  }, [debouncedSearchQuery, selectedLabel]);
+
+  useEffect(() => {
+    loadLabels();
+  }, []);
 
   const loadEmails = async () => {
     setIsLoading(true);
@@ -34,8 +46,8 @@ export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListP
         maxResults: '50',
       });
 
-      if (searchQuery) {
-        params.append('q', searchQuery);
+      if (debouncedSearchQuery) {
+        params.append('q', debouncedSearchQuery);
       }
 
       if (selectedLabel !== 'all') {
@@ -93,18 +105,27 @@ export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListP
     loadLabels();
   };
 
-  // Визначення категорії листа
   const determineCategory = (gmailEmail: any): EmailCategory => {
+    const labelIds = gmailEmail.labelIds || [];
+    const labelNames = gmailEmail.labelNames || [];
+    
+    if (labelIds.includes('INBOX') || labelNames.includes('INBOX')) return 'inbox';
+    if (labelIds.includes('SENT') || labelNames.includes('SENT')) return 'sent';
+    if (labelIds.includes('DRAFT') || labelNames.includes('DRAFT')) return 'draft';
+    if (labelIds.includes('SPAM') || labelNames.includes('SPAM')) return 'spam';
+    if (labelIds.includes('TRASH') || labelNames.includes('TRASH')) return 'trash';
+    
+    const categoryLabel = labelNames.find((name: string) => name.startsWith('Category_'));
+    if (categoryLabel) {
+      const category = categoryLabel.replace('Category_', '');
+      if (['education', 'administrative', 'student_support', 'meetings', 'documents', 'other'].includes(category)) {
+        return category as EmailCategory;
+      }
+    }
+    
     const from = gmailEmail.from?.toLowerCase() || '';
     const subject = gmailEmail.subject?.toLowerCase() || '';
     
-    if (gmailEmail.labelIds?.includes('INBOX')) return 'inbox';
-    if (gmailEmail.labelIds?.includes('SENT')) return 'sent';
-    if (gmailEmail.labelIds?.includes('DRAFT')) return 'draft';
-    if (gmailEmail.labelIds?.includes('SPAM')) return 'spam';
-    if (gmailEmail.labelIds?.includes('TRASH')) return 'trash';
-    
-    // Автоматична категорізація за вмістом
     if (subject.includes('лекція') || subject.includes('методичка') || subject.includes('навчальн')) {
       return 'education';
     }
@@ -118,19 +139,27 @@ export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListP
     return 'other';
   };
 
-  // Визначення пріоритету листа
   const determinePriority = (gmailEmail: any): EmailPriority => {
-    if (gmailEmail.labelIds?.includes('IMPORTANT')) return 'high';
+    const labelIds = gmailEmail.labelIds || [];
+    const labelNames = gmailEmail.labelNames || [];
+    
+    const priorityLabel = labelNames.find((name: string) => name.startsWith('Priority_'));
+    if (priorityLabel) {
+      const priority = priorityLabel.replace('Priority_', '').toLowerCase();
+      if (['low', 'medium', 'high', 'urgent'].includes(priority)) {
+        return priority as EmailPriority;
+      }
+    }
+    
+    if (labelIds.includes('IMPORTANT') || labelNames.includes('IMPORTANT')) return 'high';
     
     const from = gmailEmail.from?.toLowerCase() || '';
     const subject = gmailEmail.subject?.toLowerCase() || '';
     
-    // Високий пріоритет для важливих відправників
     if (from.includes('admin') || from.includes('ректор') || from.includes('декан')) {
       return 'high';
     }
     
-    // Середній пріоритет для навчальних матеріалів
     if (subject.includes('лекція') || subject.includes('методичка')) {
       return 'medium';
     }
@@ -138,12 +167,17 @@ export default function EmailList({ onEmailSelect, selectedEmailId }: EmailListP
     return 'low';
   };
 
-  // Фільтрація листів
-  const filteredEmails = emails.filter(email => {
-    if (selectedCategory !== 'all' && email.category !== selectedCategory) return false;
-    if (selectedPriority !== 'all' && email.priority !== selectedPriority) return false;
-    return true;
-  });
+  const filteredEmails = useMemo(() => {
+    return emails.filter(email => {
+      if (selectedCategory !== 'all' && email.category !== selectedCategory) {
+        return false;
+      }
+      if (selectedPriority !== 'all' && email.priority !== selectedPriority) {
+        return false;
+      }
+      return true;
+    });
+  }, [emails, selectedCategory, selectedPriority]);
 
   const formatDate = (date: Date) => {
     const now = new Date();

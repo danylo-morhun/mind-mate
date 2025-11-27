@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Створюємо Gmail API клієнт
-    const oauth2Client = new google.auth.OAuth2();
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
     oauth2Client.setCredentials({
       access_token: session.accessToken,
     });
@@ -63,10 +65,13 @@ export async function GET(request: NextRequest) {
       total: formattedLabels.length,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Gmail API error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch labels from Gmail' },
+      { 
+        error: 'Failed to fetch labels from Gmail',
+        details: error.message || 'Unknown error'
+      },
       { status: 500 }
     );
   }

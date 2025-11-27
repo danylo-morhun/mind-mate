@@ -207,26 +207,42 @@
       "modelUsed": "gemini-2.5-flash",
       "replyLength": 617,
       "userId": "danymorhun@gmail.com"
+    },
+    {
+      "id": "1764253234719",
+      "timestamp": "2025-11-27T14:20:34.719Z",
+      "emailId": "19aa5c0cb83a73d8",
+      "emailSubject": "DOU Daily: Як IT-компанії визначають ефективність ШІ та хвиля скорочень у SPD Technology, Promova і Favbet Tech",
+      "replyType": "academic",
+      "tone": "professional",
+      "language": "uk",
+      "templateId": null,
+      "customInstructions": null,
+      "generationTime": 12.152,
+      "success": true,
+      "modelUsed": "gemini-2.5-flash",
+      "replyLength": 1596,
+      "userId": "danymorhun@gmail.com"
     }
   ],
   "templates": [],
   "stats": {
-    "totalRepliesGenerated": 13,
+    "totalRepliesGenerated": 14,
     "repliesByType": {
-      "academic": 5,
+      "academic": 6,
       "confirmation": 5,
       "colleague": 3
     },
     "repliesByTone": {
-      "professional": 5,
+      "professional": 6,
       "collaborative": 3,
       "instructive": 1,
       "encouraging": 4
     },
-    "averageGenerationTime": 6.410153846153846,
+    "averageGenerationTime": 6.820285714285714,
     "templatesUsed": 8,
-    "aiOnlyGeneration": 5,
+    "aiOnlyGeneration": 6,
     "successRate": 100,
-    "lastUpdated": "2025-11-27T13:13:01.860Z"
+    "lastUpdated": "2025-11-27T14:20:34.719Z"
   }
 }

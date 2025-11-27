@@ -19,15 +19,30 @@ export async function GET(
 
     const { id } = await params;
 
-    // Створюємо Gmail API клієнт
-    const oauth2Client = new google.auth.OAuth2();
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
     oauth2Client.setCredentials({
       access_token: session.accessToken,
     });
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    // Отримуємо повну інформацію про лист
+    let labelsMap = new Map<string, string>();
+    try {
+      const labelsResponse = await gmail.users.labels.list({ userId: 'me' });
+      if (labelsResponse.data.labels) {
+        labelsResponse.data.labels.forEach((label) => {
+          if (label.id && label.name) {
+            labelsMap.set(label.id, label.name);
+          }
+        });
+      }
+    } catch (labelsError) {
+      console.error('Failed to fetch labels, continuing without label names:', labelsError);
+    }
+
     const response = await gmail.users.messages.get({
       userId: 'me',
       id: id,
@@ -95,10 +110,17 @@ export async function GET(
     const getHeader = (name: string) => 
       headers.find(h => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
 
+    const labelIds = message.labelIds || [];
+    const labelNames = labelIds.map((id: string) => {
+      if (!id) return id;
+      return labelsMap.get(id) || id;
+    });
+
     const email = {
       id: message.id,
       threadId: message.threadId,
-      labelIds: message.labelIds || [],
+      labelIds: labelIds,
+      labelNames: labelNames,
       snippet: message.snippet,
       from: getHeader('From'),
       to: getHeader('To'),
@@ -116,10 +138,13 @@ export async function GET(
 
     return NextResponse.json(email);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Gmail API error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch email from Gmail' },
+      { 
+        error: 'Failed to fetch email from Gmail',
+        details: error.message || 'Unknown error'
+      },
       { status: 500 }
     );
   }

@@ -86,18 +86,27 @@ export default function EmailPage() {
     }
   };
 
-  // Визначення категорії листа
   const determineCategory = (gmailEmail: any): Email['category'] => {
+    const labelIds = gmailEmail.labelIds || [];
+    const labelNames = gmailEmail.labelNames || [];
+    
+    if (labelIds.includes('INBOX') || labelNames.includes('INBOX')) return 'inbox';
+    if (labelIds.includes('SENT') || labelNames.includes('SENT')) return 'sent';
+    if (labelIds.includes('DRAFT') || labelNames.includes('DRAFT')) return 'draft';
+    if (labelIds.includes('SPAM') || labelNames.includes('SPAM')) return 'spam';
+    if (labelIds.includes('TRASH') || labelNames.includes('TRASH')) return 'trash';
+    
+    const categoryLabel = labelNames.find((name: string) => name.startsWith('Category_'));
+    if (categoryLabel) {
+      const category = categoryLabel.replace('Category_', '');
+      if (['education', 'administrative', 'student_support', 'meetings', 'documents', 'other'].includes(category)) {
+        return category as Email['category'];
+      }
+    }
+    
     const from = gmailEmail.from?.toLowerCase() || '';
     const subject = gmailEmail.subject?.toLowerCase() || '';
     
-    if (gmailEmail.labelIds?.includes('INBOX')) return 'inbox';
-    if (gmailEmail.labelIds?.includes('SENT')) return 'sent';
-    if (gmailEmail.labelIds?.includes('DRAFT')) return 'draft';
-    if (gmailEmail.labelIds?.includes('SPAM')) return 'spam';
-    if (gmailEmail.labelIds?.includes('TRASH')) return 'trash';
-    
-    // Автоматична категорізація за вмістом
     if (subject.includes('лекція') || subject.includes('методичка') || subject.includes('навчальн')) {
       return 'education';
     }
@@ -111,19 +120,27 @@ export default function EmailPage() {
     return 'other';
   };
 
-  // Визначення пріоритету листа
   const determinePriority = (gmailEmail: any): Email['priority'] => {
-    if (gmailEmail.labelIds?.includes('IMPORTANT')) return 'high';
+    const labelIds = gmailEmail.labelIds || [];
+    const labelNames = gmailEmail.labelNames || [];
+    
+    const priorityLabel = labelNames.find((name: string) => name.startsWith('Priority_'));
+    if (priorityLabel) {
+      const priority = priorityLabel.replace('Priority_', '').toLowerCase();
+      if (['low', 'medium', 'high', 'urgent'].includes(priority)) {
+        return priority as Email['priority'];
+      }
+    }
+    
+    if (labelIds.includes('IMPORTANT') || labelNames.includes('IMPORTANT')) return 'high';
     
     const from = gmailEmail.from?.toLowerCase() || '';
     const subject = gmailEmail.subject?.toLowerCase() || '';
     
-    // Високий пріоритет для важливих відправників
     if (from.includes('admin') || from.includes('ректор') || from.includes('декан')) {
       return 'high';
     }
     
-    // Середній пріоритет для навчальних матеріалів
     if (subject.includes('лекція') || subject.includes('методичка')) {
       return 'medium';
     }

@@ -17,6 +17,7 @@ import { Email, EmailTemplate } from '@/lib/types';
 import { useEmailTemplates } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
 import EmailQuickActions from './EmailQuickActions';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface EmailViewProps {
   email: Email | null;
@@ -46,6 +47,8 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
   });
   const [isSending, setIsSending] = useState(false);
   const [sendStatus, setSendStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const toggleAIReplyCollapsed = () => {
     const newState = !isAIReplyCollapsed;
@@ -99,14 +102,25 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
   };
 
   const determineCategory = (gmailEmail: any): Email['category'] => {
+    const labelIds = gmailEmail.labelIds || [];
+    const labelNames = gmailEmail.labelNames || [];
+    
+    if (labelIds.includes('INBOX') || labelNames.includes('INBOX')) return 'inbox';
+    if (labelIds.includes('SENT') || labelNames.includes('SENT')) return 'sent';
+    if (labelIds.includes('DRAFT') || labelNames.includes('DRAFT')) return 'draft';
+    if (labelIds.includes('SPAM') || labelNames.includes('SPAM')) return 'spam';
+    if (labelIds.includes('TRASH') || labelNames.includes('TRASH')) return 'trash';
+    
+    const categoryLabel = labelNames.find((name: string) => name.startsWith('Category_'));
+    if (categoryLabel) {
+      const category = categoryLabel.replace('Category_', '');
+      if (['education', 'administrative', 'student_support', 'meetings', 'documents', 'other'].includes(category)) {
+        return category as Email['category'];
+      }
+    }
+    
     const from = gmailEmail.from?.toLowerCase() || '';
     const subject = gmailEmail.subject?.toLowerCase() || '';
-    
-    if (gmailEmail.labelIds?.includes('INBOX')) return 'inbox';
-    if (gmailEmail.labelIds?.includes('SENT')) return 'sent';
-    if (gmailEmail.labelIds?.includes('DRAFT')) return 'draft';
-    if (gmailEmail.labelIds?.includes('SPAM')) return 'spam';
-    if (gmailEmail.labelIds?.includes('TRASH')) return 'trash';
     
     if (subject.includes('лекція') || subject.includes('методичка') || subject.includes('навчальн')) {
       return 'education';
@@ -122,7 +136,18 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
   };
 
   const determinePriority = (gmailEmail: any): Email['priority'] => {
-    if (gmailEmail.labelIds?.includes('IMPORTANT')) return 'high';
+    const labelIds = gmailEmail.labelIds || [];
+    const labelNames = gmailEmail.labelNames || [];
+    
+    const priorityLabel = labelNames.find((name: string) => name.startsWith('Priority_'));
+    if (priorityLabel) {
+      const priority = priorityLabel.replace('Priority_', '').toLowerCase();
+      if (['low', 'medium', 'high', 'urgent'].includes(priority)) {
+        return priority as Email['priority'];
+      }
+    }
+    
+    if (labelIds.includes('IMPORTANT') || labelNames.includes('IMPORTANT')) return 'high';
     
     const from = gmailEmail.from?.toLowerCase() || '';
     const subject = gmailEmail.subject?.toLowerCase() || '';
@@ -320,6 +345,90 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
   };
 
 
+  const handleArchive = async () => {
+    if (!fullEmail) return;
+    
+    setIsProcessing(true);
+    try {
+      const isInInbox = fullEmail.labels?.includes('INBOX') || fullEmail.category === 'inbox';
+      const response = await fetch(`/api/gmail/emails/${fullEmail.id}/modify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: isInInbox ? 'archive' : 'unarchive',
+        }),
+      });
+
+      if (response.ok) {
+        const updatedLabels = isInInbox
+          ? (fullEmail.labels || []).filter(id => id !== 'INBOX')
+          : [...(fullEmail.labels || []), 'INBOX'];
+        
+        onEmailUpdate(fullEmail.id, { 
+          labels: updatedLabels,
+          category: isInInbox ? 'other' : 'inbox' as Email['category']
+        });
+      }
+    } catch (error) {
+      console.error('Failed to archive email:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleStar = async () => {
+    if (!fullEmail) return;
+    
+    setIsProcessing(true);
+    try {
+      const response = await fetch(`/api/gmail/emails/${fullEmail.id}/modify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: fullEmail.isStarred ? 'unstar' : 'star',
+        }),
+      });
+
+      if (response.ok) {
+        onEmailUpdate(fullEmail.id, { isStarred: !fullEmail.isStarred });
+      }
+    } catch (error) {
+      console.error('Failed to star email:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!fullEmail) return;
+    
+    setIsProcessing(true);
+    try {
+      const response = await fetch(`/api/gmail/emails/${fullEmail.id}/modify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+        }),
+      });
+
+      if (response.ok) {
+        window.location.href = '/email';
+      }
+    } catch (error) {
+      console.error('Failed to delete email:', error);
+    } finally {
+      setIsProcessing(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const formatDate = (date: Date) => {
     return date.toLocaleString('uk-UA', {
       year: 'numeric',
@@ -402,8 +511,9 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
           
           <div className="flex items-center space-x-1 ml-2">
             <button
-              onClick={() => onEmailUpdate(displayEmail.id, { isStarred: !displayEmail.isStarred })}
-              className="p-1.5 text-gray-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-md transition-colors"
+              onClick={handleStar}
+              disabled={isProcessing}
+              className="p-1.5 text-gray-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-md transition-colors disabled:opacity-50"
               title={displayEmail.isStarred ? "Прибрати зі зірок" : "Додати до зірок"}
             >
               {displayEmail.isStarred ? (
@@ -413,11 +523,21 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
               )}
             </button>
             
-            <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors" title="Архівувати">
+            <button 
+              onClick={handleArchive}
+              disabled={isProcessing}
+              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50" 
+              title="Архівувати"
+            >
               <Archive className="h-4 w-4" />
             </button>
             
-            <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Видалити">
+            <button 
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isProcessing}
+              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50" 
+              title="Видалити"
+            >
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -676,6 +796,17 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Видалити лист"
+        message="Ви впевнені, що хочете видалити цей лист? Цю дію неможливо скасувати."
+        confirmText="Видалити"
+        cancelText="Скасувати"
+        confirmVariant="default"
+      />
     </div>
   );
 }

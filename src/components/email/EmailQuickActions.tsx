@@ -34,14 +34,50 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
     { key: 'low', label: 'Низький', icon: Tag, color: 'bg-green-100 text-green-800' }
   ];
 
-  const handleCategoryChange = (category: string) => {
-    onEmailUpdate(email.id, { category: category as Email['category'] });
-    setShowCategoryMenu(false);
+  const handleCategoryChange = async (category: string) => {
+    try {
+      const response = await fetch(`/api/gmail/emails/${email.id}/metadata`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          category: category,
+        }),
+      });
+
+      if (response.ok) {
+        onEmailUpdate(email.id, { category: category as Email['category'] });
+        setShowCategoryMenu(false);
+      } else {
+        console.error('Failed to update category');
+      }
+    } catch (error) {
+      console.error('Failed to update category:', error);
+    }
   };
 
-  const handlePriorityChange = (priority: string) => {
-    onEmailUpdate(email.id, { priority: priority as Email['priority'] });
-    setShowPriorityMenu(false);
+  const handlePriorityChange = async (priority: string) => {
+    try {
+      const response = await fetch(`/api/gmail/emails/${email.id}/metadata`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priority: priority,
+        }),
+      });
+
+      if (response.ok) {
+        onEmailUpdate(email.id, { priority: priority as Email['priority'] });
+        setShowPriorityMenu(false);
+      } else {
+        console.error('Failed to update priority');
+      }
+    } catch (error) {
+      console.error('Failed to update priority:', error);
+    }
   };
 
   const handleLabelToggle = async (labelId: string) => {
