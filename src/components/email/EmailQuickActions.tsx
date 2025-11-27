@@ -19,7 +19,6 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showPriorityMenu, setShowPriorityMenu] = useState(false);
 
-  // Категорії для університетської роботи
   const categories = [
     { key: 'education', label: 'Освіта', icon: BookOpen, color: 'bg-blue-100 text-blue-800' },
     { key: 'administrative', label: 'Адміністрація', icon: FileText, color: 'bg-green-100 text-green-800' },
@@ -29,7 +28,6 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
     { key: 'other', label: 'Інше', icon: Settings, color: 'bg-gray-100 text-gray-800' }
   ];
 
-  // Пріоритети
   const priorities = [
     { key: 'high', label: 'Високий', icon: AlertTriangle, color: 'bg-red-100 text-red-800' },
     { key: 'medium', label: 'Середній', icon: Star, color: 'bg-yellow-100 text-yellow-800' },
@@ -63,7 +61,6 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
       });
 
       if (response.ok) {
-        // Оновлюємо локальний стан
         const updatedLabels = isLabelApplied
           ? email.labels.filter(id => id !== labelId)
           : [...email.labels, labelId];
@@ -77,16 +74,15 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
   };
 
   const getCurrentCategory = () => {
-    return categories.find(cat => cat.key === email.category) || categories[5]; // other
+    return categories.find(cat => cat.key === email.category) || categories[5];
   };
 
   const getCurrentPriority = () => {
-    return priorities.find(pri => pri.key === email.priority) || priorities[1]; // medium
+    return priorities.find(pri => pri.key === email.priority) || priorities[1];
   };
 
   return (
     <div className="flex items-center gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-200">
-      {/* Категорія */}
       <div className="relative">
         <button
           onClick={() => setShowCategoryMenu(!showCategoryMenu)}
@@ -123,7 +119,6 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
         )}
       </div>
 
-      {/* Пріоритет */}
       <div className="relative">
         <button
           onClick={() => setShowPriorityMenu(!showPriorityMenu)}
@@ -160,7 +155,6 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
         )}
       </div>
 
-      {/* Мітки */}
       <div className="relative">
         <button
           onClick={() => setShowLabelMenu(!showLabelMenu)}
@@ -175,7 +169,6 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
             <div className="p-3">
               <div className="text-xs font-medium text-gray-500 mb-3">Управління мітками</div>
               
-              {/* Існуючі мітки */}
               <div className="space-y-2 mb-3">
                 {labels.filter(label => !label.name.startsWith('CATEGORY_') && !label.name.startsWith('INBOX')).map((label) => {
                   const isApplied = email.labels.includes(label.id);
@@ -200,7 +193,6 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
                 })}
               </div>
 
-              {/* Повідомлення якщо немає міток */}
               {labels.filter(label => !label.name.startsWith('CATEGORY_') && !label.name.startsWith('INBOX')).length === 0 && (
                 <div className="text-sm text-gray-500 text-center py-2">
                   Немає доступних міток
@@ -211,7 +203,6 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
         )}
       </div>
 
-      {/* Закриття меню при кліку поза ними */}
       {(showCategoryMenu || showPriorityMenu || showLabelMenu) && (
         <div
           className="fixed inset-0 z-[9998]"

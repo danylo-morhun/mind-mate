@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Reply, 
-  Forward, 
   Archive, 
   Trash2, 
   Star, 
@@ -35,31 +33,28 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
   const [isLoading, setIsLoading] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
   
-  // AI відповідь state
   const [replyType, setReplyType] = useState<string>('academic');
   const [replyTone, setReplyTone] = useState<string>('professional');
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [replyLanguage, setReplyLanguage] = useState<string>('uk');
   const [isAIReplyCollapsed, setIsAIReplyCollapsed] = useState(() => {
-    // Завантажуємо збережений стан з localStorage - за замовчуванням згорнуто
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ai-reply-collapsed');
-      return saved ? JSON.parse(saved) : true; // За замовчуванням згорнуто
+      return saved ? JSON.parse(saved) : true;
     }
-    return true; // За замовчуванням згорнуто
+    return true;
   });
+  const [isSending, setIsSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
 
-  // Функція для зміни стану згортання з збереженням
   const toggleAIReplyCollapsed = () => {
     const newState = !isAIReplyCollapsed;
     setIsAIReplyCollapsed(newState);
-    // Зберігаємо в localStorage
     if (typeof window !== 'undefined') {
       localStorage.setItem('ai-reply-collapsed', JSON.stringify(newState));
     }
   };
 
-  // Завантаження повного листа при виборі
   useEffect(() => {
     if (email?.id) {
       loadFullEmail(email.id);
@@ -73,7 +68,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
       if (response.ok) {
         const gmailEmail = await response.json();
         
-        // Трансформуємо дані з Gmail API в наш формат
         const transformedEmail: Email = {
           id: gmailEmail.id,
           threadId: gmailEmail.threadId,
@@ -104,7 +98,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
     }
   };
 
-  // Визначення категорії листа
   const determineCategory = (gmailEmail: any): Email['category'] => {
     const from = gmailEmail.from?.toLowerCase() || '';
     const subject = gmailEmail.subject?.toLowerCase() || '';
@@ -115,7 +108,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
     if (gmailEmail.labelIds?.includes('SPAM')) return 'spam';
     if (gmailEmail.labelIds?.includes('TRASH')) return 'trash';
     
-    // Автоматична категорізація за вмістом
     if (subject.includes('лекція') || subject.includes('методичка') || subject.includes('навчальн')) {
       return 'education';
     }
@@ -129,19 +121,16 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
     return 'other';
   };
 
-  // Визначення пріоритету листа
   const determinePriority = (gmailEmail: any): Email['priority'] => {
     if (gmailEmail.labelIds?.includes('IMPORTANT')) return 'high';
     
     const from = gmailEmail.from?.toLowerCase() || '';
     const subject = gmailEmail.subject?.toLowerCase() || '';
     
-    // Високий пріоритет для важливих відправників
     if (from.includes('admin') || from.includes('ректор') || from.includes('декан')) {
       return 'high';
     }
     
-    // Середній пріоритет для навчальних матеріалів
     if (subject.includes('лекція') || subject.includes('методичка')) {
       return 'medium';
     }
@@ -152,13 +141,9 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId);
     
-    // Шаблон змінюється, але відповідь НЕ генерується автоматично
-    // Відповідь генерується тільки по натисканню кнопки "AI Відповідь"
     if (templateId) {
-      // Очищаємо попередню відповідь при зміні шаблону
       setReplyText('');
     } else {
-      // Якщо вибрано "Без шаблону", очищаємо відповідь
       setReplyText('');
     }
   };
@@ -191,8 +176,7 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
         const data = await response.json();
         setReplyText(data.reply);
         
-        // Зберігаємо статистику AI відповіді
-        const generationTime = (Date.now() - startTime) / 1000; // в секундах
+        const generationTime = (Date.now() - startTime) / 1000;
         
         try {
           await fetch('/api/analytics/ai-reply', {
@@ -216,16 +200,13 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
           });
         } catch (analyticsError) {
           console.error('Failed to save AI analytics:', analyticsError);
-          // Не блокуємо основну функціональність, якщо статистика не збереглася
         }
         
       } else {
         console.error('Помилка генерації AI відповіді');
-        // Fallback до mock відповіді
         const mockReply = `Дякую за ваше повідомлення про "${fullEmail.subject}".\n\nЯ обов'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.\n\nЗ повагою,\nMind Mate AI`;
         setReplyText(mockReply);
         
-        // Зберігаємо статистику про невдалу спробу
         const generationTime = (Date.now() - startTime) / 1000;
         
         try {
@@ -254,11 +235,9 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
       }
     } catch (error) {
       console.error('Помилка генерації відповіді:', error);
-      // Fallback до mock відповіді
       const mockReply = `Дякую за ваше повідомлення про "${fullEmail.subject}".\n\nЯ обов'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.\n\nЗ повагою,\nMind Mate AI`;
       setReplyText(mockReply);
       
-      // Зберігаємо статистику про помилку
       const generationTime = (Date.now() - startTime) / 1000;
       
       try {
@@ -290,24 +269,56 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
   };
 
   const handleSendReply = async () => {
-    if (!replyText.trim()) return;
+    if (!replyText.trim() || !fullEmail) return;
+    
+    setIsSending(true);
+    setSendStatus({ type: null, message: '' });
     
     try {
-      // Тут буде відправка відповіді через Gmail API
-      console.log('Відправка відповіді:', replyText);
-      
-      // Очищаємо форму
+      const response = await fetch(`/api/gmail/emails/${fullEmail.id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          replyText: replyText.trim(),
+          subject: fullEmail.subject,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Помилка відправки відповіді');
+      }
+
+      setSendStatus({ 
+        type: 'success', 
+        message: 'Відповідь успішно відправлена!' 
+      });
+
       setReplyText('');
       setSelectedTemplate('');
       
-      // Позначаємо лист як прочитаний
-      if (fullEmail && !fullEmail.isRead) {
+      if (!fullEmail.isRead) {
         onEmailUpdate(fullEmail.id, { isRead: true });
       }
-    } catch (error) {
+
+      setTimeout(() => {
+        setSendStatus({ type: null, message: '' });
+      }, 3000);
+
+    } catch (error: any) {
       console.error('Помилка відправки відповіді:', error);
+      setSendStatus({ 
+        type: 'error', 
+        message: error.message || 'Не вдалося відправити відповідь. Спробуйте ще раз.' 
+      });
+    } finally {
+      setIsSending(false);
     }
   };
+
 
   const formatDate = (date: Date) => {
     return date.toLocaleString('uk-UA', {
@@ -370,7 +381,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
 
   return (
     <div className="flex-1 flex flex-col bg-white h-full email-container">
-      {/* Заголовок листа - фіксований, компактний */}
       <div className="p-4 border-b border-gray-200 flex-shrink-0 bg-white email-header" style={{ zIndex: 2 }}>
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
@@ -413,7 +423,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
           </div>
         </div>
         
-        {/* Швидкі дії для листа - компактні */}
         <EmailQuickActions
           email={displayEmail}
           onEmailUpdate={onEmailUpdate}
@@ -422,7 +431,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
         />
       </div>
 
-      {/* Текст листа - скролиться окремо, більший простір */}
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar min-h-0 bg-white email-body" style={{ fontSize: '15px', lineHeight: '1.6' }}>
         <div className="prose max-w-none">
           {displayEmail.body ? (
@@ -436,7 +444,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
           )}
         </div>
         
-        {/* Вкладення */}
         {displayEmail.attachments.length > 0 && (
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h3 className="text-lg font-medium text-gray-900 mb-3">Вкладення</h3>
@@ -465,10 +472,8 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
         )}
       </div>
 
-      {/* Форма відповіді - фіксована висота без скролу */}
       <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0 email-form" style={{ zIndex: 2 }}>
         <div className="email-reply-form">
-          {/* AI Відповідь - компактний заголовок */}
           <div className="email-reply-section">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -495,7 +500,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
               </button>
             </div>
             {isAIReplyCollapsed ? (
-              // Згорнутий стан - компактна кнопка
               <div className="ai-reply-collapsible collapsed flex items-center justify-center py-2">
                 <button
                   onClick={toggleAIReplyCollapsed}
@@ -506,7 +510,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
               </div>
             ) : (
               <div className="ai-reply-collapsible expanded space-y-2">
-                {/* Компактний ряд з усіма налаштуваннями */}
                 <div className="grid grid-cols-4 gap-2 my-1 mx-1">
                   <select
                     value={replyType}
@@ -562,7 +565,6 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
                   </button>
                 </div>
                 
-                {/* Шаблон та кастомні інструкції в одному рядку */}
                 <div className="flex items-center gap-2 my-1 mx-1">
                   <select
                     value={selectedTemplate}
@@ -591,16 +593,27 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
             )}
           </div>
           
-          {/* Текст відповіді - більший розмір */}
           <div className="email-reply-section flex-1">
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700">Текст відповіді:</label>
-              {isGeneratingReply && (
-                <div className="flex items-center text-xs text-blue-600">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-                  AI генерує...
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {isGeneratingReply && (
+                  <div className="flex items-center text-xs text-blue-600">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                    AI генерує...
+                  </div>
+                )}
+                {sendStatus.type === 'success' && (
+                  <div className="flex items-center text-xs text-green-600">
+                    <span>✓ {sendStatus.message}</span>
+                  </div>
+                )}
+                {sendStatus.type === 'error' && (
+                  <div className="flex items-center text-xs text-red-600">
+                    <span>✗ {sendStatus.message}</span>
+                  </div>
+                )}
+              </div>
             </div>
             <textarea
               value={replyText}
@@ -628,45 +641,37 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
             )}
           </div>
           
-          {/* Кнопки дій - компактні */}
           <div className="email-reply-buttons">
-            <div className="email-controls justify-between">
-              <div className="email-controls">
-                <button 
-                  onClick={() => setReplyText('')}
-                  disabled={!replyText.trim()}
-                  className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 transition-colors"
-                >
-                  Очистити
-                </button>
-                
-                <button className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center">
-                  <Reply className="h-3 w-3 mr-1" />
-                  Відповісти
-                </button>
-                
-                <button className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center">
-                  <Forward className="h-3 w-3 mr-1" />
-                  Переслати
-                </button>
-              </div>
+            <div className="email-controls justify-end">
+              <button 
+                onClick={() => setReplyText('')}
+                disabled={!replyText.trim()}
+                className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 transition-colors"
+              >
+                Очистити
+              </button>
               
-              <div className="email-controls">
-                <button
-                  onClick={() => setReplyText(replyText + '\n\n---\nMind Mate AI Assistant')}
-                  className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-                >
-                  + Підпис
-                </button>
-                
-                <button
-                  onClick={handleSendReply}
-                  disabled={!replyText.trim()}
-                  className="text-xs px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
-                >
-                  Надіслати
-                </button>
-              </div>
+              <button
+                onClick={() => setReplyText(replyText + '\n\n---\nMind Mate AI Assistant')}
+                className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              >
+                + Підпис
+              </button>
+              
+              <button
+                onClick={handleSendReply}
+                disabled={!replyText.trim() || isSending}
+                className="text-xs px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center"
+              >
+                {isSending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                    Відправка...
+                  </>
+                ) : (
+                  'Надіслати'
+                )}
+              </button>
             </div>
           </div>
         </div>

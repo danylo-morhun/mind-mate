@@ -175,26 +175,58 @@
       "modelUsed": "gemini-2.5-flash",
       "replyLength": 190,
       "userId": "danymorhun@gmail.com"
+    },
+    {
+      "id": "1764249142410",
+      "timestamp": "2025-11-27T13:12:22.410Z",
+      "emailId": "19aa157e1d901cc3",
+      "emailSubject": "voinovVladyslav invited you to voinovVladyslav/masters-ui",
+      "replyType": "academic",
+      "tone": "professional",
+      "language": "uk",
+      "templateId": null,
+      "customInstructions": null,
+      "generationTime": 13.298,
+      "success": true,
+      "modelUsed": "gemini-2.5-flash",
+      "replyLength": 264,
+      "userId": "danymorhun@gmail.com"
+    },
+    {
+      "id": "1764249181860",
+      "timestamp": "2025-11-27T13:13:01.860Z",
+      "emailId": "19aa157e1d901cc3",
+      "emailSubject": "voinovVladyslav invited you to voinovVladyslav/masters-ui",
+      "replyType": "academic",
+      "tone": "professional",
+      "language": "uk",
+      "templateId": null,
+      "customInstructions": null,
+      "generationTime": 8.181,
+      "success": true,
+      "modelUsed": "gemini-2.5-flash",
+      "replyLength": 617,
+      "userId": "danymorhun@gmail.com"
     }
   ],
   "templates": [],
   "stats": {
-    "totalRepliesGenerated": 11,
+    "totalRepliesGenerated": 13,
     "repliesByType": {
-      "academic": 3,
+      "academic": 5,
       "confirmation": 5,
       "colleague": 3
     },
     "repliesByTone": {
-      "professional": 3,
+      "professional": 5,
       "collaborative": 3,
       "instructive": 1,
       "encouraging": 4
     },
-    "averageGenerationTime": 5.623,
+    "averageGenerationTime": 6.410153846153846,
     "templatesUsed": 8,
-    "aiOnlyGeneration": 3,
+    "aiOnlyGeneration": 5,
     "successRate": 100,
-    "lastUpdated": "2025-11-27T13:02:02.556Z"
+    "lastUpdated": "2025-11-27T13:13:01.860Z"
   }
 }
