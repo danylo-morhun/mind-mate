@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { google } from 'googleapis';
 import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUserId } from '@/lib/supabase/utils';
+import { marked } from 'marked';
 
 export async function POST(
   request: NextRequest,
@@ -80,6 +81,51 @@ export async function POST(
     // Додаємо контент до документа, якщо він є
     const content = document.content || '';
     if (content) {
+      // Parse markdown to HTML first
+      marked.setOptions({
+        breaks: true,
+        gfm: true,
+      });
+      
+      let htmlContent = '';
+      try {
+        htmlContent = marked.parse(content);
+      } catch (error) {
+        console.error('Error parsing markdown:', error);
+        htmlContent = content.replace(/\n/g, '<br>');
+      }
+      
+      // Convert HTML to plain text with basic formatting
+      // Remove HTML tags but preserve structure
+      const textContent = htmlContent
+        .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n\n$1\n\n')
+        .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n\n$1\n\n')
+        .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n\n$1\n\n')
+        .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '\n\n$1\n\n')
+        .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '\n\n$1\n\n')
+        .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '\n\n$1\n\n')
+        .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '$1')
+        .replace(/<b[^>]*>(.*?)<\/b>/gi, '$1')
+        .replace(/<em[^>]*>(.*?)<\/em>/gi, '$1')
+        .replace(/<i[^>]*>(.*?)<\/i>/gi, '$1')
+        .replace(/<code[^>]*>(.*?)<\/code>/gi, '$1')
+        .replace(/<pre[^>]*>(.*?)<\/pre>/gi, '\n$1\n')
+        .replace(/<ul[^>]*>(.*?)<\/ul>/gi, '\n$1\n')
+        .replace(/<ol[^>]*>(.*?)<\/ol>/gi, '\n$1\n')
+        .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      
+      // Insert the formatted text
       await docs.documents.batchUpdate({
         documentId: googleDocId,
         requestBody: {
@@ -87,7 +133,7 @@ export async function POST(
             {
               insertText: {
                 location: { index: 1 },
-                text: content,
+                text: textContent,
               },
             },
           ],
