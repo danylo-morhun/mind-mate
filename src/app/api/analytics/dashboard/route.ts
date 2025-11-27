@@ -169,6 +169,7 @@ async function getGmailStatistics(accessToken: string, period: string) {
       const batchDetails = await Promise.all(
         batch.map(async (email: any) => {
           try {
+            // Отримуємо metadata, включаючи internalDate
             const detailResponse = await fetch(
               `https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
               {
@@ -180,7 +181,15 @@ async function getGmailStatistics(accessToken: string, period: string) {
             );
             
             if (detailResponse.ok) {
-              return await detailResponse.json();
+              const emailData = await detailResponse.json();
+              if (!emailData.internalDate && emailData.payload?.headers) {
+                const dateHeader = emailData.payload.headers.find((h: any) => h.name === 'Date');
+                if (dateHeader) {
+                  const date = new Date(dateHeader.value);
+                  emailData.internalDate = String(date.getTime());
+                }
+              }
+              return emailData;
             }
             return null;
           } catch (error) {
@@ -450,19 +459,74 @@ function analyzeEmailCategories(emails: any[]) {
 
 // Аналіз активності по днях
 function analyzeActivityByDay(emails: any[], period: string) {
+  if (!emails || emails.length === 0) {
+    return [];
+  }
+
+  // Для тижня групуємо по днях тижня (Пн-Нд)
+  if (period === 'week') {
+    const dayCounts: Record<string, number> = {};
+    const dayNameMap: Record<number, string> = {
+      0: 'Нд',
+      1: 'Пн',
+      2: 'Вт',
+      3: 'Ср',
+      4: 'Чт',
+      5: 'Пт',
+      6: 'Сб'
+    };
+    const displayOrder = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+    
+    emails.forEach((email: any) => {
+      const internalDate = email.internalDate;
+      if (!internalDate) {
+        return;
+      }
+      try {
+        const date = new Date(typeof internalDate === 'string' ? parseInt(internalDate) : internalDate);
+        if (isNaN(date.getTime())) {
+          console.warn('Invalid date from email:', internalDate);
+          return;
+        }
+        const dayOfWeek = date.getDay();
+        const dayName = dayNameMap[dayOfWeek];
+        if (dayName) {
+          dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+        }
+      } catch (error) {
+        console.error('Error parsing email date:', error, 'internalDate:', internalDate);
+      }
+    });
+    
+    return displayOrder.map(dayName => ({
+      date: dayName,
+      count: dayCounts[dayName] || 0,
+      dayName
+    }));
+  }
+  
+  // Для місяця та року - хронологічний порядок по датах
   const days: Record<string, number> = {};
+  let daysToShow = period === 'month' ? 30 : 365;
   
   emails.forEach((email: any) => {
-    const date = new Date(parseInt(email.internalDate));
-    const dayKey = date.toISOString().split('T')[0];
-    days[dayKey] = (days[dayKey] || 0) + 1;
+    if (!email.internalDate) return;
+    try {
+      const date = new Date(parseInt(email.internalDate));
+      if (isNaN(date.getTime())) return;
+      const dayKey = date.toISOString().split('T')[0];
+      days[dayKey] = (days[dayKey] || 0) + 1;
+    } catch (error) {
+      console.error('Error parsing email date:', error);
+    }
   });
   
   // Сортуємо по даті та обмежуємо період
   const sortedDays = Object.entries(days)
     .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-7); // Останні 7 днів
+    .slice(-daysToShow);
   
+  // Повертаємо в хронологічному порядку (від старіших до новіших)
   return sortedDays.map(([date, count]) => ({
     date,
     count,
@@ -492,20 +556,46 @@ function calculateAverageResponseTime(emails: any[]) {
 // Функція для збору статистики документів
 async function getDocumentsStats(period: string) {
   try {
-    // Отримуємо реальні дані документів
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const documentsResponse = await fetch(`${baseUrl}/api/documents`, {
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-
-    if (!documentsResponse.ok) {
-      throw new Error('Failed to fetch documents');
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      throw new Error('User not authenticated');
     }
 
-    const documents = await documentsResponse.json();
+    const supabase = createServerClient();
+    
+    // Отримуємо реальні дані документів з Supabase
+    const { data: documents, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching documents from Supabase:', error);
+      throw new Error('Failed to fetch documents from database');
+    }
+
+    if (!documents || documents.length === 0) {
+      return {
+        totalDocuments: 0,
+        documentsByType: {},
+        documentsByCategory: {},
+        aiGeneratedDocuments: 0,
+        documentsThisPeriod: 0,
+        averageDocumentLength: 0,
+        mostActiveDay: 'Н/Д',
+        documentsTrend: []
+      };
+    }
+
+    // Трансформуємо дані з бази в формат додатку
+    const transformedDocuments = documents.map((doc: any) => ({
+      ...doc,
+      createdDate: doc.created_date ? new Date(doc.created_date) : new Date(),
+      lastModified: doc.last_modified ? new Date(doc.last_modified) : new Date(),
+      aiGenerated: doc.ai_generated || false,
+      metadata: doc.metadata || {}
+    }));
 
     // Визначаємо період для фільтрації
     const now = new Date();
@@ -525,9 +615,12 @@ async function getDocumentsStats(period: string) {
         periodStart.setDate(now.getDate() - 7);
     }
 
-    // Фільтруємо документи по періоду
-    const documentsInPeriod = documents.filter((doc: any) => {
-      const createdDate = new Date(doc.createdDate);
+    // Фільтруємо документи по періоду (використовуємо transformedDocuments)
+    // Встановлюємо час на початок дня для коректного порівняння
+    periodStart.setHours(0, 0, 0, 0);
+    const documentsInPeriod = transformedDocuments.filter((doc: any) => {
+      const createdDate = doc.createdDate instanceof Date ? doc.createdDate : new Date(doc.createdDate);
+      createdDate.setHours(0, 0, 0, 0);
       return createdDate >= periodStart;
     });
 
@@ -561,9 +654,10 @@ async function getDocumentsStats(period: string) {
     let totalWordCount = 0;
     let aiGeneratedCount = 0;
     const dayCounts: Record<string, number> = {};
-    const dayNames = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    // Дні тижня в правильному порядку (Пн-Нд для відображення)
+    const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
 
-    documents.forEach((doc: any) => {
+    transformedDocuments.forEach((doc: any) => {
       // По типах (мапінг з category на типи для статистики)
       const mappedType = categoryToTypeMap[doc.category] || 'course';
       documentsByType[mappedType] = (documentsByType[mappedType] || 0) + 1;
@@ -573,20 +667,37 @@ async function getDocumentsStats(period: string) {
       documentsByCategory[categoryName] = (documentsByCategory[categoryName] || 0) + 1;
 
       // AI згенеровані
-      if (doc.aiGenerated) {
+      if (doc.ai_generated || doc.aiGenerated) {
         aiGeneratedCount++;
       }
 
       // Довжина документів
-      if (doc.metadata?.wordCount) {
-        totalWordCount += doc.metadata.wordCount;
+      const wordCount = doc.metadata?.wordCount || (doc.content ? doc.content.length / 5 : 0);
+      if (wordCount > 0) {
+        totalWordCount += wordCount;
       }
 
       // Активність по днях (для документів в періоді)
-      const createdDate = new Date(doc.createdDate);
-      if (createdDate >= periodStart) {
-        const dayName = dayNames[createdDate.getDay()];
-        dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+      const createdDate = doc.createdDate instanceof Date ? doc.createdDate : new Date(doc.createdDate);
+      const createdDateNormalized = new Date(createdDate);
+      createdDateNormalized.setHours(0, 0, 0, 0);
+      if (createdDateNormalized >= periodStart) {
+        // getDay() повертає: 0=Нд, 1=Пн, 2=Вт, 3=Ср, 4=Чт, 5=Пт, 6=Сб
+        // Мапимо на правильні назви
+        const dayOfWeek = createdDateNormalized.getDay();
+        const dayNameMap: Record<number, string> = {
+          0: 'Нд',
+          1: 'Пн',
+          2: 'Вт',
+          3: 'Ср',
+          4: 'Чт',
+          5: 'Пт',
+          6: 'Сб'
+        };
+        const dayName = dayNameMap[dayOfWeek];
+        if (dayName) {
+          dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+        }
       }
     });
 
@@ -594,19 +705,21 @@ async function getDocumentsStats(period: string) {
     const mostActiveDay = Object.entries(dayCounts)
       .sort(([, a], [, b]) => b - a)[0]?.[0] || 'Н/Д';
 
-    // Формуємо тренд по днях тижня
-    const documentsTrend = dayNames.map(day => ({
+    // Формуємо тренд по днях тижня в правильному порядку (Пн-Нд)
+    // Порядок для відображення: Пн, Вт, Ср, Чт, Пт, Сб, Нд
+    const displayOrder = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+    const documentsTrend = displayOrder.map(day => ({
       day,
       count: dayCounts[day] || 0
     }));
 
     // Середня довжина документа
-    const averageDocumentLength = documents.length > 0 
-      ? Math.round(totalWordCount / documents.length) 
+    const averageDocumentLength = transformedDocuments.length > 0 
+      ? Math.round(totalWordCount / transformedDocuments.length) 
       : 0;
 
     return {
-      totalDocuments: documents.length,
+      totalDocuments: transformedDocuments.length,
       documentsByType,
       documentsByCategory,
       aiGeneratedDocuments: aiGeneratedCount,
@@ -684,8 +797,8 @@ async function getProductivityStats(
     const aiTimeSavedHours = (aiRepliesGenerated * minutesPerReply) / 60;
 
     // Розраховуємо productivityScore (0-100) на основі метрик
-    // Формула: базова оцінка + бонуси за активність
-    let productivityScore = 50; // Базова оцінка
+    // Формула: бонуси за активність (без базової оцінки, щоб показувати реальну продуктивність)
+    let productivityScore = 0; // Починаємо з 0, додаємо бонуси за реальну активність
     
     // Бонус за email активність (максимум +20)
     const emailScore = Math.min((totalEmails / 100) * 20, 20);
@@ -699,13 +812,12 @@ async function getProductivityStats(
     productivityScore = Math.round(productivityScore + emailScore + documentsScore + aiScore);
     productivityScore = Math.min(productivityScore, 100); // Максимум 100
 
-    const topProductiveHours = [
-      { hour: '9:00', score: 95 },
-      { hour: '10:00', score: 92 },
-      { hour: '11:00', score: 88 },
-      { hour: '14:00', score: 85 },
-      { hour: '15:00', score: 82 }
-    ];
+    // Розраховуємо найпродуктивніші години на основі реальної активності
+    // Якщо немає даних про активність по годинах, повертаємо порожній масив
+    const topProductiveHours: Array<{ hour: string; score: number }> = [];
+    
+    // Можна додати аналіз активності по годинах з Gmail API або інших джерел
+    // Поки що залишаємо порожнім, якщо немає реальних даних
 
     // Розраховуємо workloadDistribution (відсотки)
     const totalWorkload = totalEmails + documentsThisPeriod + (aiRepliesGenerated * 0.5);
@@ -725,12 +837,11 @@ async function getProductivityStats(
       });
     }
 
-    // Тижневі цілі (базуються на поточній активності + 20%)
     const weeklyGoals = {
-      emailsProcessed: Math.round(totalEmails * 1.2),
-      documentsCreated: Math.round(documentsThisPeriod * 1.2),
-      aiTasksCompleted: Math.round(aiRepliesGenerated * 1.2),
-      collaborationHours: Math.round((aiRepliesGenerated * 0.1) * 1.2)
+      emailsProcessed: totalEmails > 0 ? Math.round(totalEmails * 1.2) : 0,
+      documentsCreated: documentsThisPeriod > 0 ? Math.round(documentsThisPeriod * 1.2) : 0,
+      aiTasksCompleted: aiRepliesGenerated > 0 ? Math.round(aiRepliesGenerated * 1.2) : 0,
+      collaborationHours: aiRepliesGenerated > 0 ? Math.round((aiRepliesGenerated * 0.1) * 1.2) : 0
     };
 
     return {
@@ -761,20 +872,41 @@ async function getProductivityStats(
 // Функція для збору статистики співпраці
 async function getCollaborationStats(period: string, documentsStats: any) {
   try {
-    // Отримуємо реальні дані документів для аналізу співпраці
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const documentsResponse = await fetch(`${baseUrl}/api/documents`, {
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-
-    if (!documentsResponse.ok) {
-      throw new Error('Failed to fetch documents for collaboration stats');
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return {
+        sharedDocuments: 0,
+        teamMembers: 0,
+        activeProjects: 0,
+        topCollaborators: [],
+        collaborationScore: 0
+      };
     }
 
-    const documents = await documentsResponse.json();
+    const supabase = createServerClient();
+    
+    // Отримуємо реальні дані документів з Supabase
+    const { data: documents, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (error || !documents || documents.length === 0) {
+      return {
+        sharedDocuments: 0,
+        teamMembers: 0,
+        activeProjects: 0,
+        topCollaborators: [],
+        collaborationScore: 0
+      };
+    }
+
+    // Трансформуємо дані з бази
+    const transformedDocuments = documents.map((doc: any) => ({
+      ...doc,
+      createdDate: doc.created_date ? new Date(doc.created_date) : new Date(),
+      lastModified: doc.last_modified ? new Date(doc.last_modified) : new Date(),
+    }));
 
     // Визначаємо період для фільтрації
     const now = new Date();
@@ -795,19 +927,19 @@ async function getCollaborationStats(period: string, documentsStats: any) {
     }
 
     // Фільтруємо документи по періоду
-    const documentsInPeriod = documents.filter((doc: any) => {
-      const createdDate = new Date(doc.createdDate);
+    const documentsInPeriod = transformedDocuments.filter((doc: any) => {
+      const createdDate = doc.createdDate instanceof Date ? doc.createdDate : new Date(doc.createdDate);
       return createdDate >= periodStart;
     });
 
     // Підраховуємо спільні документи (з collaborators)
-    const sharedDocuments = documents.filter((doc: any) => 
-      doc.collaborators && doc.collaborators.length > 0
+    const sharedDocuments = transformedDocuments.filter((doc: any) => 
+      doc.collaborators && Array.isArray(doc.collaborators) && doc.collaborators.length > 0
     ).length;
 
     // Збираємо унікальних учасників команди
     const teamMembersSet = new Set<string>();
-    documents.forEach((doc: any) => {
+    transformedDocuments.forEach((doc: any) => {
       if (doc.author) teamMembersSet.add(doc.author);
       if (doc.collaborators && Array.isArray(doc.collaborators)) {
         doc.collaborators.forEach((collab: string) => teamMembersSet.add(collab));
@@ -816,14 +948,14 @@ async function getCollaborationStats(period: string, documentsStats: any) {
     const teamMembers = teamMembersSet.size;
 
     // Підраховуємо активні проекти (документи зі статусом не draft та не archived)
-    const activeProjects = documents.filter((doc: any) => 
+    const activeProjects = transformedDocuments.filter((doc: any) => 
       doc.status && doc.status !== 'draft' && doc.status !== 'archived'
     ).length;
 
     // Розраховуємо топ співробітників (на основі кількості документів)
     const collaboratorStats: Record<string, { projects: number; hours: number }> = {};
     
-    documents.forEach((doc: any) => {
+    transformedDocuments.forEach((doc: any) => {
       if (doc.collaborators && Array.isArray(doc.collaborators)) {
         doc.collaborators.forEach((collab: string) => {
           if (!collaboratorStats[collab]) {
@@ -842,7 +974,7 @@ async function getCollaborationStats(period: string, documentsStats: any) {
 
     // Розраховуємо статус проектів (на основі статусів документів)
     const projectStatus: Record<string, string> = {};
-    documents.slice(0, 5).forEach((doc: any) => {
+    transformedDocuments.slice(0, 5).forEach((doc: any) => {
       if (doc.title && doc.status) {
         const statusMap: Record<string, string> = {
           'draft': 'Планування',
@@ -856,21 +988,33 @@ async function getCollaborationStats(period: string, documentsStats: any) {
       }
     });
 
-    // Розраховуємо канали комунікації (базуємося на типах документів та співпраці)
-    const totalCollaboration = sharedDocuments + activeProjects;
+    // Розраховуємо канали комунікації (базуємося на загальній кількості документів)
+    const totalDocuments = transformedDocuments.length;
+    const documentsWithCollaborators = transformedDocuments.filter((doc: any) => 
+      doc.collaborators && Array.isArray(doc.collaborators) && doc.collaborators.length > 0
+    ).length;
+    
+    // Розраховуємо відсотки на основі реальних даних
     const communicationChannels = {
-      email: totalCollaboration > 0 ? Math.round((sharedDocuments / totalCollaboration) * 100) : 0,
-      documents: totalCollaboration > 0 ? Math.round((activeProjects / totalCollaboration) * 100) : 0,
-      meetings: totalCollaboration > 0 ? Math.round((topCollaborators.length / totalCollaboration) * 20) : 0
+      email: totalDocuments > 0 ? Math.round((documentsWithCollaborators / totalDocuments) * 40) : 0,
+      documents: totalDocuments > 0 ? Math.round((totalDocuments / Math.max(totalDocuments, 1)) * 50) : 0,
+      meetings: totalDocuments > 0 ? Math.round((Math.min(topCollaborators.length, totalDocuments) / Math.max(totalDocuments, 1)) * 10) : 0
     };
 
-    // Нормалізуємо до 100%
-    const totalChannels = Object.values(communicationChannels).reduce((sum, val) => sum + val, 0);
-    if (totalChannels > 0 && totalChannels !== 100) {
-      Object.keys(communicationChannels).forEach(key => {
-        communicationChannels[key as keyof typeof communicationChannels] = 
-          Math.round((communicationChannels[key as keyof typeof communicationChannels] / totalChannels) * 100);
-      });
+    // Нормалізуємо до 100% якщо є документи
+    if (totalDocuments > 0) {
+      const totalChannels = Object.values(communicationChannels).reduce((sum, val) => sum + val, 0);
+      if (totalChannels > 0 && totalChannels !== 100) {
+        Object.keys(communicationChannels).forEach(key => {
+          communicationChannels[key as keyof typeof communicationChannels] = 
+            Math.round((communicationChannels[key as keyof typeof communicationChannels] / totalChannels) * 100);
+        });
+      }
+    } else {
+      // Якщо немає документів, показуємо рівномірний розподіл
+      communicationChannels.email = 33;
+      communicationChannels.documents = 34;
+      communicationChannels.meetings = 33;
     }
 
     const collaborationHours = sharedDocuments * 2;
