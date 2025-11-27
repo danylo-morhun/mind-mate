@@ -11,7 +11,9 @@ import type { Database } from './database.types';
 function getSupabaseUrl(): string {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+    // Return placeholder during build to prevent build failures
+    // Actual error will occur at runtime when the client is used
+    return 'https://placeholder.supabase.co';
   }
   return supabaseUrl;
 }

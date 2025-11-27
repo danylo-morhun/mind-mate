@@ -205,7 +205,7 @@ async function getGmailStatistics(accessToken: string, period: string) {
     const validEmails = emailDetails.filter(Boolean);
 
     // Отримуємо labels для мапінгу labelIds на назви
-    let labelsMap = new Map<string, string>();
+    const labelsMap = new Map<string, string>();
     try {
       const labelsResponse = await fetch(
         'https://gmail.googleapis.com/gmail/v1/users/me/labels',

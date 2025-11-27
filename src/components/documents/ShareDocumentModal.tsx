@@ -482,7 +482,7 @@ export default function ShareDocumentModal({ isOpen, onClose, document }: ShareD
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Повідомлення (необов'язково)
+                    Повідомлення (необов&apos;язково)
                   </label>
                   <textarea
                     value={invitationMessage}

@@ -10,7 +10,8 @@ export interface GeminiConfig {
 
 export class GeminiClient {
   private genAI: GoogleGenerativeAI;
-  private model: any; // @ts-ignore - Google AI types
+  // @ts-expect-error - Google AI types are not fully typed
+  private model: any;
   private config: GeminiConfig;
 
   constructor(config: GeminiConfig) {
@@ -145,7 +146,8 @@ export class GeminiClient {
 
   async generateReplyWithSafety(prompt: string): Promise<{
     text: string;
-    safetyRatings: any[]; // @ts-ignore - Google AI types
+    // @ts-expect-error - Google AI types are not fully typed
+    safetyRatings: any[];
     blocked: boolean;
   }> {
     try {

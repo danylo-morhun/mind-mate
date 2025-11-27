@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     let aiReply: string;
     let modelUsed = 'mock-ai-fallback';
-    let errorMessage = null;
+    const errorMessage = null;
     let promptContext: ReturnType<typeof buildGeminiPrompt> | null = null;
 
     try {

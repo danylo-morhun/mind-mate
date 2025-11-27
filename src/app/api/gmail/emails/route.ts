@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    let labelsMap = new Map<string, string>();
+    const labelsMap = new Map<string, string>();
     try {
       const labelsResponse = await gmail.users.labels.list({ userId: 'me' });
       if (labelsResponse.data.labels) {
