@@ -35,7 +35,9 @@ const documentTypeNames = {
 };
 
 export default function DocumentsStatsCard({ stats }: DocumentsStatsCardProps) {
-  const totalAIUsage = ((stats.aiGeneratedDocuments / stats.totalDocuments) * 100).toFixed(1);
+  const totalAIUsage = stats.totalDocuments > 0 
+    ? ((stats.aiGeneratedDocuments / stats.totalDocuments) * 100).toFixed(1)
+    : '0.0';
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -76,29 +78,37 @@ export default function DocumentsStatsCard({ stats }: DocumentsStatsCardProps) {
           Розподіл по типах
         </h4>
         <div className="space-y-2">
-          {Object.entries(stats.documentsByType).map(([type, count]) => {
-            const Icon = documentTypeIcons[type as keyof typeof documentTypeIcons] || FileText;
-            const percentage = ((count / stats.totalDocuments) * 100).toFixed(1);
-            return (
-              <div key={type} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Icon className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">
-                    {documentTypeNames[type as keyof typeof documentTypeNames] || type}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full" 
-                      style={{ width: `${percentage}%` }}
-                    />
+          {stats.documentsByType && Object.keys(stats.documentsByType).length > 0 ? (
+            Object.entries(stats.documentsByType).map(([type, count]) => {
+              const Icon = documentTypeIcons[type as keyof typeof documentTypeIcons] || FileText;
+              const percentage = stats.totalDocuments > 0 
+                ? ((count / stats.totalDocuments) * 100).toFixed(1)
+                : '0.0';
+              return (
+                <div key={type} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">
+                      {documentTypeNames[type as keyof typeof documentTypeNames] || type}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium text-gray-900">{count}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full" 
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">{count}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div className="text-sm text-gray-500 text-center py-2">
+              Немає документів для відображення
+            </div>
+          )}
         </div>
       </div>
 
@@ -109,15 +119,25 @@ export default function DocumentsStatsCard({ stats }: DocumentsStatsCardProps) {
           Активність по днях
         </h4>
         <div className="flex items-end gap-1 h-20">
-          {stats.documentsTrend.map((item, index) => (
-            <div key={index} className="flex-1 flex flex-col items-center">
-              <div 
-                className="w-full bg-blue-100 rounded-t transition-all duration-300 hover:bg-blue-200"
-                style={{ height: `${(item.count / Math.max(...stats.documentsTrend.map(d => d.count))) * 60}px` }}
-              />
-              <span className="text-xs text-gray-600 mt-1">{item.day}</span>
+          {stats.documentsTrend && stats.documentsTrend.length > 0 ? (
+            stats.documentsTrend.map((item, index) => {
+              const maxCount = Math.max(...stats.documentsTrend.map(d => d.count || 0), 1);
+              const height = maxCount > 0 ? (item.count / maxCount) * 60 : 0;
+              return (
+                <div key={index} className="flex-1 flex flex-col items-center">
+                  <div 
+                    className="w-full bg-blue-100 rounded-t transition-all duration-300 hover:bg-blue-200"
+                    style={{ height: `${height}px` }}
+                  />
+                  <span className="text-xs text-gray-600 mt-1">{item.day}</span>
+                </div>
+              );
+            })
+          ) : (
+            <div className="w-full text-center text-gray-500 text-sm py-4">
+              Немає даних про активність
             </div>
-          ))}
+          )}
         </div>
       </div>
 

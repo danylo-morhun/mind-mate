@@ -174,7 +174,9 @@ export default function CollaborationCard({ stats }: CollaborationCardProps) {
             </div>
             <div>
               <span className="text-xs text-gray-500 block">Активні команди</span>
-              <span className="text-sm font-semibold text-gray-900">3 команди</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {stats.teamMembers > 0 ? `${Math.ceil(stats.teamMembers / 2)} команди` : '0 команд'}
+              </span>
             </div>
           </div>
         </div>
