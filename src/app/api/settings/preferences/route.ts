@@ -71,13 +71,27 @@ export async function PUT(request: NextRequest) {
       .eq('user_id', userId)
       .single();
 
+    // Merge new preferences with existing ones to preserve profile and other data
+    const currentPreferences = existing?.preferences || {};
+    const mergedPreferences = {
+      ...currentPreferences,
+      ...(body.preferences || {}),
+      // Deep merge for nested objects
+      security: {
+        ...currentPreferences.security,
+        ...body.preferences?.security,
+      },
+      // Preserve profile if it exists
+      profile: currentPreferences.profile || body.preferences?.profile,
+    };
+
     let result;
     if (existing) {
       // Update existing preferences
       const { data, error } = await supabase
         .from('user_preferences')
         .update({
-          preferences: body.preferences || {},
+          preferences: mergedPreferences,
         })
         .eq('user_id', userId)
         .select()
@@ -97,7 +111,7 @@ export async function PUT(request: NextRequest) {
         .from('user_preferences')
         .insert({
           user_id: userId,
-          preferences: body.preferences || {},
+          preferences: mergedPreferences,
         })
         .select()
         .single();
