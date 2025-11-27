@@ -135,7 +135,6 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      // TODO: Замінити на реальний API запит
       const response = await fetch('/api/documents');
       if (!response.ok) {
         throw new Error('Failed to load documents');
@@ -168,24 +167,34 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      // TODO: Замінити на реальний API запит
-      const newDocument = {
-        id: `doc_${Date.now()}`,
-        ...documentData,
-        createdDate: new Date(),
-        lastModified: new Date(),
-        status: 'draft',
-        owner: 'current_user',
-        version: '1.0',
-        metadata: {
-          lastAccessed: new Date(),
-          accessCount: 0,
-          favoriteCount: 0
-        }
+      const response = await fetch('/api/documents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(documentData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create document' }));
+        throw new Error(errorData.error || 'Failed to create document');
+      }
+
+      const newDocument = await response.json();
+      
+      // Конвертуємо дати
+      const documentWithDates = {
+        ...newDocument,
+        lastModified: new Date(newDocument.lastModified),
+        createdDate: new Date(newDocument.createdDate),
+        metadata: newDocument.metadata ? {
+          ...newDocument.metadata,
+          lastAccessed: new Date(newDocument.metadata.lastAccessed)
+        } : undefined
       };
       
-      dispatch({ type: 'ADD_DOCUMENT', payload: newDocument });
-      return newDocument;
+      dispatch({ type: 'ADD_DOCUMENT', payload: documentWithDates });
+      return documentWithDates;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
@@ -201,19 +210,34 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      // TODO: Замінити на реальний API запит
-      // Поки що оновлюємо локально
-      const updatedDocument = {
-        ...updates,
-        lastModified: new Date(),
-        metadata: updates.metadata ? {
-          ...updates.metadata,
-          lastAccessed: new Date()
+      const response = await fetch(`/api/documents/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update document' }));
+        throw new Error(errorData.error || 'Failed to update document');
+      }
+
+      const updatedDocument = await response.json();
+      
+      // Конвертуємо дати
+      const documentWithDates = {
+        ...updatedDocument,
+        lastModified: new Date(updatedDocument.lastModified),
+        createdDate: new Date(updatedDocument.createdDate),
+        metadata: updatedDocument.metadata ? {
+          ...updatedDocument.metadata,
+          lastAccessed: new Date(updatedDocument.metadata.lastAccessed)
         } : undefined
       };
       
-      dispatch({ type: 'UPDATE_DOCUMENT', payload: { id, updates: updatedDocument } });
-      return updatedDocument;
+      dispatch({ type: 'UPDATE_DOCUMENT', payload: { id, updates: documentWithDates } });
+      return documentWithDates;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
@@ -229,13 +253,13 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      // TODO: Замінити на реальний API запит
       const response = await fetch(`/api/documents/${id}`, {
         method: 'DELETE',
       });
       
       if (!response.ok) {
-        throw new Error('Failed to delete document');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete document' }));
+        throw new Error(errorData.error || 'Failed to delete document');
       }
       
       dispatch({ type: 'DELETE_DOCUMENT', payload: id });
