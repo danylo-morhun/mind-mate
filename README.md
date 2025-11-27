@@ -34,6 +34,24 @@ npm run dev
 
 Open http://localhost:3000
 
+### Environment Setup
+
+Create `.env.local`:
+```env
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+NEXTAUTH_URL=http://localhost:3000
+GOOGLE_AI_API_KEY=your-gemini-api-key
+NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL=your-script-url
+```
+
+### Google Cloud Setup
+
+1. Create Google Cloud Project
+2. Enable APIs: Gmail, Drive, Docs, Sheets, Calendar
+3. Create OAuth 2.0 credentials
+4. Deploy Google Apps Script from `google-apps-script/` folder
+
 ## 📊 Progress
 
 | Module | Status | Completion |
@@ -55,18 +73,22 @@ Open http://localhost:3000
 
 **Next Milestone:** Complete Gmail testing and begin AI assistant implementation
 
-## 🐛 Known Limitations
+## 🧪 Testing
 
+### Quick Test Checklist
+- [ ] Navigation works across all modules
+- [ ] Gmail module loads email list (`/email`)
+- [ ] Search and filters work
+- [ ] Email detail view opens
+- [ ] AI reply generation (demo) works
+- [ ] Dashboard shows statistics (`/dashboard`)
+- [ ] Responsive design on mobile/tablet
+
+### Known Limitations
 - API requests use test data
 - AI generation is simulated
 - Attachments not loaded
 - Data not persisted between sessions
-
-## 📚 Documentation
-
-- [SETUP.md](./SETUP.md) - Setup instructions
-- [QUICK_START.md](./QUICK_START.md) - Quick start guide
-- [TESTING_GUIDE.md](./TESTING_GUIDE.md) - Testing guide
 
 ## 🤝 Contributing
 
