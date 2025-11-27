@@ -15,7 +15,8 @@ import {
   User,
   Tag,
   Share2,
-  Download
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import { Document, DocumentType, DocumentCategory, DocumentStatus } from '@/lib/types';
 
@@ -26,6 +27,7 @@ interface DocumentCardProps {
   onDelete: (documentId: string) => void;
   onShare: (document: Document) => void;
   onDownload: (document: Document) => void;
+  onExportToGoogleDocs?: (document: Document) => void;
   onToggleStar: (documentId: string) => void;
   isStarred?: boolean;
 }
@@ -37,6 +39,7 @@ export default function DocumentCard({
   onDelete,
   onShare,
   onDownload,
+  onExportToGoogleDocs,
   onToggleStar,
   isStarred = false
 }: DocumentCardProps) {
@@ -204,6 +207,20 @@ export default function DocumentCard({
               </div>
             </>
           )}
+          {document.googleDocUrl && (
+            <div className="flex items-center gap-2">
+              <ExternalLink className="h-4 w-4" />
+              <a
+                href={document.googleDocUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline text-xs"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Відкрити в Google Docs
+              </a>
+            </div>
+          )}
         </div>
       </div>
 
@@ -255,6 +272,27 @@ export default function DocumentCard({
             >
               <Download className="h-4 w-4" />
             </button>
+            {onExportToGoogleDocs && !document.googleDocId && (
+              <button
+                onClick={() => onExportToGoogleDocs(document)}
+                className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                title="Експортувати до Google Docs"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </button>
+            )}
+            {document.googleDocUrl && (
+              <a
+                href={document.googleDocUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
+                title="Відкрити в Google Docs"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
             <button
               onClick={() => onDelete(document.id)}
               className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"

@@ -13,6 +13,7 @@ interface DocumentListProps {
   onDelete: (documentId: string) => void;
   onShare: (document: Document) => void;
   onDownload: (document: Document) => void;
+  onExportToGoogleDocs?: (document: Document) => void;
   onToggleStar: (documentId: string) => void;
   starredDocuments?: string[];
 }
@@ -25,6 +26,7 @@ export default function DocumentList({
   onDelete,
   onShare,
   onDownload,
+  onExportToGoogleDocs,
   onToggleStar,
   starredDocuments = []
 }: DocumentListProps) {
@@ -76,6 +78,7 @@ export default function DocumentList({
             onDelete={onDelete}
             onShare={onShare}
             onDownload={onDownload}
+            onExportToGoogleDocs={onExportToGoogleDocs}
             onToggleStar={onToggleStar}
             isStarred={starredDocuments.includes(document.id)}
           />
