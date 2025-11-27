@@ -85,16 +85,16 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
   };
 
   return (
-    <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+    <div className="flex items-center gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-200">
       {/* Категорія */}
       <div className="relative">
         <button
           onClick={() => setShowCategoryMenu(!showCategoryMenu)}
-          className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors ${getCurrentCategory().color}`}
+          className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${getCurrentCategory().color}`}
         >
           {(() => {
             const IconComponent = getCurrentCategory().icon;
-            return <IconComponent className="h-4 w-4" />;
+            return <IconComponent className="h-3 w-3" />;
           })()}
           {getCurrentCategory().label}
         </button>
@@ -127,11 +127,11 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
       <div className="relative">
         <button
           onClick={() => setShowPriorityMenu(!showPriorityMenu)}
-          className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors ${getCurrentPriority().color}`}
+          className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${getCurrentPriority().color}`}
         >
           {(() => {
             const IconComponent = getCurrentPriority().icon;
-            return <IconComponent className="h-4 w-4" />;
+            return <IconComponent className="h-3 w-3" />;
           })()}
           {getCurrentPriority().label}
         </button>
@@ -164,9 +164,9 @@ export default function EmailQuickActions({ email, onEmailUpdate, labels, onLabe
       <div className="relative">
         <button
           onClick={() => setShowLabelMenu(!showLabelMenu)}
-          className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs"
         >
-          <Tag className="h-4 w-4" />
+          <Tag className="h-3 w-3" />
           Мітки ({email.labels.length})
         </button>
 

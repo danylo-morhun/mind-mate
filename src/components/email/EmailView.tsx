@@ -41,12 +41,12 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [replyLanguage, setReplyLanguage] = useState<string>('uk');
   const [isAIReplyCollapsed, setIsAIReplyCollapsed] = useState(() => {
-    // Завантажуємо збережений стан з localStorage
+    // Завантажуємо збережений стан з localStorage - за замовчуванням згорнуто
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ai-reply-collapsed');
-      return saved ? JSON.parse(saved) : false;
+      return saved ? JSON.parse(saved) : true; // За замовчуванням згорнуто
     }
-    return false;
+    return true; // За замовчуванням згорнуто
   });
 
   // Функція для зміни стану згортання з збереженням
@@ -370,49 +370,50 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
 
   return (
     <div className="flex-1 flex flex-col bg-white h-full email-container">
-      {/* Заголовок листа - фіксований */}
-      <div className="p-6 border-b border-gray-200 flex-shrink-0 bg-white email-header" style={{ zIndex: 2 }}>
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+      {/* Заголовок листа - фіксований, компактний */}
+      <div className="p-4 border-b border-gray-200 flex-shrink-0 bg-white email-header" style={{ zIndex: 2 }}>
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 mb-1.5 truncate">
               {displayEmail.subject}
             </h1>
             
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-2">
-                <User className="h-4 w-4" />
-                <span>Від: {displayEmail.from}</span>
+            <div className="flex items-center space-x-3 text-xs text-gray-600">
+              <div className="flex items-center space-x-1">
+                <User className="h-3 w-3" />
+                <span className="truncate max-w-xs">Від: {displayEmail.from}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4" />
+              <div className="flex items-center space-x-1">
+                <Clock className="h-3 w-3" />
                 <span>{formatDate(displayEmail.date)}</span>
               </div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 ml-2">
             <button
               onClick={() => onEmailUpdate(displayEmail.id, { isStarred: !displayEmail.isStarred })}
-              className="p-2 text-gray-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-md transition-colors"
+              className="p-1.5 text-gray-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-md transition-colors"
+              title={displayEmail.isStarred ? "Прибрати зі зірок" : "Додати до зірок"}
             >
               {displayEmail.isStarred ? (
-                <Star className="h-5 w-5 text-yellow-500 fill-current" />
+                <Star className="h-4 w-4 text-yellow-500 fill-current" />
               ) : (
-                <StarOff className="h-5 w-5" />
+                <StarOff className="h-4 w-4" />
               )}
             </button>
             
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
-              <Archive className="h-5 w-5" />
+            <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors" title="Архівувати">
+              <Archive className="h-4 w-4" />
             </button>
             
-            <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
-              <Trash2 className="h-5 w-5" />
+            <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Видалити">
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         </div>
         
-        {/* Швидкі дії для листа */}
+        {/* Швидкі дії для листа - компактні */}
         <EmailQuickActions
           email={displayEmail}
           onEmailUpdate={onEmailUpdate}
@@ -421,8 +422,8 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
         />
       </div>
 
-      {/* Текст листа - скролиться окремо */}
-      <div className="flex-1 p-6 overflow-y-auto custom-scrollbar min-h-0 bg-white email-body">
+      {/* Текст листа - скролиться окремо, більший простір */}
+      <div className="flex-1 p-6 overflow-y-auto custom-scrollbar min-h-0 bg-white email-body" style={{ fontSize: '15px', lineHeight: '1.6' }}>
         <div className="prose max-w-none">
           {displayEmail.body ? (
             <div 
@@ -465,58 +466,57 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
       </div>
 
       {/* Форма відповіді - фіксована висота без скролу */}
-      <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0 email-form" style={{ zIndex: 2 }}>
+      <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0 email-form" style={{ zIndex: 2 }}>
         <div className="email-reply-form">
-          <h3 className="text-lg font-medium text-gray-900">Відповісти</h3>
-          
-          {/* AI Відповідь - основна функція */}
+          {/* AI Відповідь - компактний заголовок */}
           <div className="email-reply-section">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">AI Відповідь:</label>
                 <div className="flex items-center text-xs text-gray-500">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  AI готовий до роботи
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                  Готовий
                 </div>
               </div>
               <button
                 onClick={toggleAIReplyCollapsed}
-                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors text-xs"
                 title={isAIReplyCollapsed ? "Розгорнути AI відповідь" : "Згорнути AI відповідь"}
               >
                 {isAIReplyCollapsed ? (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                   </svg>
                 )}
               </button>
             </div>
             {isAIReplyCollapsed ? (
-              // Згорнутий стан - показуємо тільки кнопку AI відповіді
-              <div className="ai-reply-collapsible collapsed flex items-center justify-center py-4">
+              // Згорнутий стан - компактна кнопка
+              <div className="ai-reply-collapsible collapsed flex items-center justify-center py-2">
                 <button
                   onClick={toggleAIReplyCollapsed}
-                  className="email-control-button email-control-button-primary px-6 py-3"
+                  className="text-xs px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
-                  🎯 Розгорнути AI відповідь
+                  🎯 AI Відповідь
                 </button>
               </div>
             ) : (
-              <div className="ai-reply-collapsible expanded space-y-3">
-                {/* Тип відповіді для університету */}
-                <div className="flex items-center gap-4">
+              <div className="ai-reply-collapsible expanded space-y-2">
+                {/* Компактний ряд з усіма налаштуваннями */}
+                <div className="grid grid-cols-4 gap-2 my-1 mx-1">
                   <select
                     value={replyType}
                     onChange={(e) => setReplyType(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="text-xs px-2 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    title="Тип відповіді"
                   >
                     <option value="academic">🎓 Академічна</option>
                     <option value="administrative">📋 Адміністративна</option>
-                    <option value="student_support">👨‍🎓 Підтримка студентів</option>
+                    <option value="student_support">👨‍🎓 Підтримка</option>
                     <option value="colleague">🤝 Колегам</option>
                     <option value="urgent">⚡ Термінова</option>
                     <option value="confirmation">✅ Підтвердження</option>
@@ -525,7 +525,8 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
                   <select
                     value={replyTone}
                     onChange={(e) => setReplyTone(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="text-xs px-2 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    title="Тон відповіді"
                   >
                     <option value="professional">🎯 Професійний</option>
                     <option value="supportive">💪 Підтримуючий</option>
@@ -533,71 +534,71 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
                     <option value="instructive">📚 Інструктивний</option>
                     <option value="collaborative">🤝 Колаборативний</option>
                   </select>
-                </div>
-                
-                {/* Шаблон (опціонально) */}
-                <div className="flex items-center gap-4">
+                  
                   <select
-                    value={selectedTemplate}
-                    onChange={(e) => handleTemplateChange(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={replyLanguage}
+                    onChange={(e) => setReplyLanguage(e.target.value)}
+                    className="text-xs px-2 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    title="Мова"
                   >
-                    <option value="">🎯 Без шаблону (AI генерує все)</option>
-                    {emailTemplates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        📋 {template.name} (база для AI)
-                      </option>
-                    ))}
+                    <option value="uk">🇺🇦 UK</option>
+                    <option value="en">🇺🇸 EN</option>
+                    <option value="de">🇩🇪 DE</option>
                   </select>
                   
                   <button
                     onClick={handleGenerateReply}
                     disabled={isGeneratingReply}
-                    className="email-control-button email-control-button-primary disabled:opacity-50 whitespace-nowrap px-6"
+                    className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
                   >
                     {isGeneratingReply ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <span className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
                         Генерація...
-                      </>
+                      </span>
                     ) : (
-                      '🎯 AI Відповідь'
+                      '🎯 Генерувати'
                     )}
                   </button>
                 </div>
                 
-                {/* Кастомні інструкції та мова */}
-                <div className="flex items-center gap-4">
+                {/* Шаблон та кастомні інструкції в одному рядку */}
+                <div className="flex items-center gap-2 my-1 mx-1">
+                  <select
+                    value={selectedTemplate}
+                    onChange={(e) => handleTemplateChange(e.target.value)}
+                    className="flex-1 mb-1 text-xs px-2 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    title="Шаблон (опціонально)"
+                  >
+                    <option value="">🎯 Без шаблону</option>
+                    {emailTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        📋 {template.name}
+                      </option>
+                    ))}
+                  </select>
+                  
                   <input
                     type="text"
                     value={customInstructions}
                     onChange={(e) => setCustomInstructions(e.target.value)}
-                    placeholder="Спеціальні вимоги для AI (наприклад: 'включити посилання на документи', 'додати контакти')"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Спеціальні вимоги..."
+                    className="flex-1 text-xs mb-1 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    title="Кастомні інструкції"
                   />
-                  
-                  <select
-                    value={replyLanguage}
-                    onChange={(e) => setReplyLanguage(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="uk">🇺🇦 Українська</option>
-                    <option value="en">🇺🇸 English</option>
-                    <option value="de">🇩🇪 Deutsch</option>
-                  </select>
                 </div>
               </div>
             )}
           </div>
           
-          {/* Текст відповіді */}
+          {/* Текст відповіді - більший розмір */}
           <div className="email-reply-section flex-1">
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700">Текст відповіді:</label>
               {isGeneratingReply && (
-                <div className="flex items-center text-sm text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                  AI генерує відповідь...
+                <div className="flex items-center text-xs text-blue-600">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                  AI генерує...
                 </div>
               )}
             </div>
@@ -605,21 +606,20 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder={isGeneratingReply ? "AI генерує відповідь..." : "Текст відповіді з'явиться тут після генерації AI або введіть вручну..."}
-              rows={4}
               className="email-reply-textarea"
               disabled={isGeneratingReply}
             />
             {replyText && (
-              <div className="mt-2 text-xs text-gray-500">
+              <div className="mt-1 text-xs text-gray-500">
                 <div className="flex items-center justify-between">
                   <div>
-                    Довжина: {replyText.length} символів | Слова: {replyText.split(/\s+/).filter(word => word.length > 0).length}
+                    {replyText.length} символів | {replyText.split(/\s+/).filter(word => word.length > 0).length} слів
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-green-600">🤖 AI згенеровано</span>
+                    <span className="text-green-600">🤖 AI</span>
                     {selectedTemplate && (
-                      <span className="text-blue-600">
-                        📋 Шаблон: {emailTemplates.find(t => t.id === selectedTemplate)?.name}
+                      <span className="text-blue-600 text-xs">
+                        📋 {emailTemplates.find(t => t.id === selectedTemplate)?.name}
                       </span>
                     )}
                   </div>
@@ -628,25 +628,25 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
             )}
           </div>
           
-          {/* Кнопки дій */}
+          {/* Кнопки дій - компактні */}
           <div className="email-reply-buttons">
             <div className="email-controls justify-between">
               <div className="email-controls">
                 <button 
                   onClick={() => setReplyText('')}
                   disabled={!replyText.trim()}
-                  className="email-control-button email-control-button-secondary"
+                  className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 transition-colors"
                 >
                   Очистити
                 </button>
                 
-                <button className="email-control-button email-control-button-primary">
-                  <Reply className="h-4 w-4 mr-2 inline" />
+                <button className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center">
+                  <Reply className="h-3 w-3 mr-1" />
                   Відповісти
                 </button>
                 
-                <button className="email-control-button email-control-button-secondary">
-                  <Forward className="h-4 w-4 mr-2 inline" />
+                <button className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center">
+                  <Forward className="h-3 w-3 mr-1" />
                   Переслати
                 </button>
               </div>
@@ -654,7 +654,7 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
               <div className="email-controls">
                 <button
                   onClick={() => setReplyText(replyText + '\n\n---\nMind Mate AI Assistant')}
-                  className="email-control-button email-control-button-secondary"
+                  className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
                 >
                   + Підпис
                 </button>
@@ -662,7 +662,7 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
                 <button
                   onClick={handleSendReply}
                   disabled={!replyText.trim()}
-                  className="email-control-button email-control-button-success disabled:opacity-50"
+                  className="text-xs px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
                 >
                   Надіслати
                 </button>
