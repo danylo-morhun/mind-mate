@@ -556,10 +556,362 @@ function deleteEmailTemplate(templateId) {
 }
 
 /**
- * Заглушки для інших модулів
+ * Обробка запитів до Google Docs API
  */
 function handleDocsRequest(method, path, e) {
-  return { error: 'Documents module not implemented yet' };
+  const pathParts = path.split('/');
+  const action = pathParts[2];
+  const docId = pathParts[3];
+  
+  switch (method) {
+    case 'GET':
+      if (action === 'list') {
+        return listGoogleDocs(e.parameter.folderId, e.parameter.maxResults || 50);
+      } else if (action === 'get' && docId) {
+        return getGoogleDoc(docId);
+      } else if (action === 'export' && docId) {
+        return exportGoogleDoc(docId, e.parameter.format || 'text/plain');
+      }
+      break;
+      
+    case 'POST':
+      if (action === 'create') {
+        const data = JSON.parse(e.postData.contents);
+        return createGoogleDoc(data.title, data.content, data.folderId);
+      } else if (action === 'export' && docId) {
+        const data = JSON.parse(e.postData.contents);
+        return exportDocumentToGoogleDocs(docId, data.title, data.content, data.folderId);
+      } else if (action === 'update' && docId) {
+        const data = JSON.parse(e.postData.contents);
+        return updateGoogleDoc(docId, data.content);
+      } else if (action === 'share' && docId) {
+        const data = JSON.parse(e.postData.contents);
+        return shareGoogleDoc(docId, data.email, data.role || 'reader');
+      }
+      break;
+      
+    case 'PUT':
+      if (action === 'update' && docId) {
+        const data = JSON.parse(e.postData.contents);
+        return updateGoogleDoc(docId, data.content);
+      }
+      break;
+      
+    case 'DELETE':
+      if (action === 'delete' && docId) {
+        return deleteGoogleDoc(docId);
+      }
+      break;
+  }
+  
+  return { error: 'Invalid Docs request', path: path };
+}
+
+/**
+ * Створення нового Google Docs документа
+ */
+function createGoogleDoc(title, content, folderId) {
+  try {
+    // Створюємо новий документ
+    const doc = DocumentApp.create(title);
+    const docId = doc.getId();
+    
+    // Додаємо контент
+    const body = doc.getBody();
+    body.clear();
+    
+    // Конвертуємо текст в параграфи (розділяємо по новим рядкам)
+    const paragraphs = content.split('\n\n');
+    paragraphs.forEach(paragraph => {
+      if (paragraph.trim()) {
+        body.appendParagraph(paragraph.trim());
+      }
+    });
+    
+    // Якщо вказана папка, переміщуємо документ
+    if (folderId) {
+      const file = DriveApp.getFileById(docId);
+      const folder = DriveApp.getFolderById(folderId);
+      file.moveTo(folder);
+    }
+    
+    // Отримуємо URL документа
+    const docUrl = doc.getUrl();
+    
+    return {
+      success: true,
+      docId: docId,
+      url: docUrl,
+      title: title,
+      message: 'Google Docs document created successfully'
+    };
+  } catch (error) {
+    console.error('Error creating Google Doc:', error);
+    return { 
+      error: 'Failed to create Google Doc', 
+      details: error.toString() 
+    };
+  }
+}
+
+/**
+ * Експорт документа до Google Docs
+ */
+function exportDocumentToGoogleDocs(documentId, title, content, folderId) {
+  try {
+    // Створюємо новий Google Docs документ
+    const doc = DocumentApp.create(title);
+    const docId = doc.getId();
+    
+    // Додаємо контент
+    const body = doc.getBody();
+    body.clear();
+    
+    // Конвертуємо текст в параграфи
+    const paragraphs = content.split('\n\n');
+    paragraphs.forEach(paragraph => {
+      if (paragraph.trim()) {
+        const para = body.appendParagraph(paragraph.trim());
+        // Додаємо форматування для заголовків (якщо рядок короткий і без крапки)
+        if (paragraph.trim().length < 100 && !paragraph.trim().includes('.')) {
+          para.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+        }
+      }
+    });
+    
+    // Якщо вказана папка, переміщуємо документ
+    if (folderId) {
+      const file = DriveApp.getFileById(docId);
+      const folder = DriveApp.getFolderById(folderId);
+      file.moveTo(folder);
+    }
+    
+    // Отримуємо URL документа
+    const docUrl = doc.getUrl();
+    
+    return {
+      success: true,
+      docId: docId,
+      url: docUrl,
+      title: title,
+      documentId: documentId,
+      message: 'Document exported to Google Docs successfully'
+    };
+  } catch (error) {
+    console.error('Error exporting to Google Docs:', error);
+    return { 
+      error: 'Failed to export to Google Docs', 
+      details: error.toString() 
+    };
+  }
+}
+
+/**
+ * Оновлення Google Docs документа
+ */
+function updateGoogleDoc(docId, content) {
+  try {
+    const doc = DocumentApp.openById(docId);
+    const body = doc.getBody();
+    
+    // Очищаємо документ
+    body.clear();
+    
+    // Додаємо новий контент
+    const paragraphs = content.split('\n\n');
+    paragraphs.forEach(paragraph => {
+      if (paragraph.trim()) {
+        body.appendParagraph(paragraph.trim());
+      }
+    });
+    
+    return {
+      success: true,
+      docId: docId,
+      message: 'Google Docs document updated successfully'
+    };
+  } catch (error) {
+    console.error('Error updating Google Doc:', error);
+    return { 
+      error: 'Failed to update Google Doc', 
+      details: error.toString() 
+    };
+  }
+}
+
+/**
+ * Отримання Google Docs документа
+ */
+function getGoogleDoc(docId) {
+  try {
+    const doc = DocumentApp.openById(docId);
+    const body = doc.getBody();
+    const text = body.getText();
+    
+    return {
+      success: true,
+      docId: docId,
+      title: doc.getName(),
+      content: text,
+      url: doc.getUrl(),
+      lastModified: doc.getLastUpdated()
+    };
+  } catch (error) {
+    console.error('Error getting Google Doc:', error);
+    return { 
+      error: 'Failed to get Google Doc', 
+      details: error.toString() 
+    };
+  }
+}
+
+/**
+ * Експорт Google Docs документа в різних форматах
+ */
+function exportGoogleDoc(docId, format) {
+  try {
+    const file = DriveApp.getFileById(docId);
+    let exportUrl;
+    let mimeType;
+    
+    switch (format) {
+      case 'pdf':
+        exportUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=pdf';
+        mimeType = 'application/pdf';
+        break;
+      case 'docx':
+        exportUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=docx';
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        break;
+      case 'html':
+        exportUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=html';
+        mimeType = 'text/html';
+        break;
+      case 'txt':
+      default:
+        exportUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=txt';
+        mimeType = 'text/plain';
+        break;
+    }
+    
+    return {
+      success: true,
+      docId: docId,
+      exportUrl: exportUrl,
+      mimeType: mimeType,
+      format: format
+    };
+  } catch (error) {
+    console.error('Error exporting Google Doc:', error);
+    return { 
+      error: 'Failed to export Google Doc', 
+      details: error.toString() 
+    };
+  }
+}
+
+/**
+ * Список Google Docs документів
+ */
+function listGoogleDocs(folderId, maxResults) {
+  try {
+    let files;
+    
+    if (folderId) {
+      const folder = DriveApp.getFolderById(folderId);
+      files = folder.getFilesByType(MimeType.GOOGLE_DOCS);
+    } else {
+      files = DriveApp.getFilesByType(MimeType.GOOGLE_DOCS);
+    }
+    
+    const docs = [];
+    let count = 0;
+    
+    while (files.hasNext() && count < maxResults) {
+      const file = files.next();
+      docs.push({
+        id: file.getId(),
+        name: file.getName(),
+        url: file.getUrl(),
+        lastModified: file.getLastUpdated(),
+        size: file.getSize(),
+        owner: file.getOwner().getEmail()
+      });
+      count++;
+    }
+    
+    return {
+      success: true,
+      docs: docs,
+      count: docs.length
+    };
+  } catch (error) {
+    console.error('Error listing Google Docs:', error);
+    return { 
+      error: 'Failed to list Google Docs', 
+      details: error.toString() 
+    };
+  }
+}
+
+/**
+ * Налаштування доступу до Google Docs документа
+ */
+function shareGoogleDoc(docId, email, role) {
+  try {
+    const file = DriveApp.getFileById(docId);
+    
+    // Валідація ролі
+    const validRoles = ['reader', 'commenter', 'writer', 'owner'];
+    const finalRole = validRoles.includes(role) ? role : 'reader';
+    
+    file.addEditor(email);
+    
+    // Якщо потрібен інший рівень доступу, використовуємо Drive API
+    if (finalRole === 'reader') {
+      file.removeEditor(email);
+      file.addViewer(email);
+    } else if (finalRole === 'commenter') {
+      file.removeEditor(email);
+      file.addCommenter(email);
+    }
+    
+    return {
+      success: true,
+      docId: docId,
+      email: email,
+      role: finalRole,
+      message: 'Document shared successfully'
+    };
+  } catch (error) {
+    console.error('Error sharing Google Doc:', error);
+    return { 
+      error: 'Failed to share Google Doc', 
+      details: error.toString() 
+    };
+  }
+}
+
+/**
+ * Видалення Google Docs документа
+ */
+function deleteGoogleDoc(docId) {
+  try {
+    const file = DriveApp.getFileById(docId);
+    file.setTrashed(true);
+    
+    return {
+      success: true,
+      docId: docId,
+      message: 'Google Docs document deleted successfully'
+    };
+  } catch (error) {
+    console.error('Error deleting Google Doc:', error);
+    return { 
+      error: 'Failed to delete Google Doc', 
+      details: error.toString() 
+    };
+  }
 }
 
 function handleGradingRequest(method, path, e) {
