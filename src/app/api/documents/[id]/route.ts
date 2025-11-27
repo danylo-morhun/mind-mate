@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Document } from '@/lib/types';
-import { 
-  getMockDocumentById, 
-  updateMockDocument, 
-  deleteMockDocument 
-} from '@/lib/mock-documents';
+import { getCurrentUserId, transformDocument } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 import { addMockVersion } from '@/lib/mock-versions';
 
 export async function GET(
@@ -13,27 +10,46 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
     
-    if (!document) {
+    // Fetch document from Supabase
+    const { data: document, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !document) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
 
-    const documentWithDates = {
-      ...document,
-      lastModified: new Date(document.lastModified),
-      createdDate: new Date(document.createdDate),
-      metadata: document.metadata ? {
-        ...document.metadata,
-        lastAccessed: new Date(document.metadata.lastAccessed)
-      } : undefined
-    };
+    // Update last accessed time
+    await supabase
+      .from('documents')
+      .update({
+        metadata: {
+          ...document.metadata,
+          lastAccessed: new Date().toISOString(),
+          accessCount: ((document.metadata as any)?.accessCount || 0) + 1
+        }
+      })
+      .eq('id', id);
 
-    return NextResponse.json(documentWithDates);
+    const transformedDocument = transformDocument(document);
+    return NextResponse.json(transformedDocument);
   } catch (error) {
     console.error('Error fetching document:', error);
     return NextResponse.json(
@@ -50,48 +66,85 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+    const userId = await getCurrentUserId();
     
-    const existingDocument = getMockDocumentById(id);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
     
-    if (!existingDocument) {
+    // Fetch existing document
+    const { data: existingDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !existingDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
-    
-    const hasContentChanges = body.content !== undefined && body.content !== existingDocument.content;
-    const hasTitleChanges = body.title !== undefined && body.title !== existingDocument.title;
+
+    const existingDoc = transformDocument(existingDocument);
+    const hasContentChanges = body.content !== undefined && body.content !== existingDoc.content;
+    const hasTitleChanges = body.title !== undefined && body.title !== existingDoc.title;
     const shouldCreateVersion = hasContentChanges || hasTitleChanges;
-    const newVersion = body.version !== undefined ? body.version : existingDocument.version + 1;
+    const newVersion = body.version !== undefined ? body.version : existingDoc.version + 1;
     
-    const updates: Partial<Document> = {
-      ...body,
-      lastModified: new Date(),
+    // Prepare updates
+    const updates: any = {
+      last_modified: new Date().toISOString(),
       version: newVersion,
       metadata: {
-        ...existingDocument.metadata,
+        ...existingDoc.metadata,
         ...body.metadata,
-        lastAccessed: new Date(),
-        accessCount: (existingDocument.metadata?.accessCount || 0) + 1
+        lastAccessed: new Date().toISOString(),
+        accessCount: (existingDoc.metadata?.accessCount || 0) + 1
       }
     };
 
-    const updatedDocument = updateMockDocument(id, updates);
+    if (body.title !== undefined) updates.title = body.title;
+    if (body.content !== undefined) updates.content = body.content;
+    if (body.type !== undefined) updates.type = body.type;
+    if (body.category !== undefined) updates.category = body.category;
+    if (body.status !== undefined) updates.status = body.status;
+    if (body.tags !== undefined) updates.tags = body.tags;
+    if (body.collaborators !== undefined) updates.collaborators = body.collaborators;
+    if (body.permissions !== undefined) updates.permissions = body.permissions;
 
-    if (!updatedDocument) {
+    // Update document in Supabase
+    const { data: updatedDocument, error: updateError } = await supabase
+      .from('documents')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (updateError || !updatedDocument) {
+      console.error('Error updating document in Supabase:', updateError);
       return NextResponse.json(
         { error: 'Failed to update document' },
         { status: 500 }
       );
     }
 
+    const transformedDoc = transformDocument(updatedDocument);
+
+    // Create version history if needed (still using mock for now, can be migrated to Supabase later)
     if (shouldCreateVersion) {
       const changes: string[] = [];
-      if (hasTitleChanges) changes.push(`Оновлено заголовок: "${existingDocument.title}" → "${updatedDocument.title}"`);
+      if (hasTitleChanges) changes.push(`Оновлено заголовок: "${existingDoc.title}" → "${transformedDoc.title}"`);
       if (hasContentChanges) {
-        const oldLength = existingDocument.content.length;
-        const newLength = updatedDocument.content.length;
+        const oldLength = existingDoc.content.length;
+        const newLength = transformedDoc.content.length;
         if (newLength > oldLength) {
           changes.push(`Додано ${newLength - oldLength} символів до контенту`);
         } else if (newLength < oldLength) {
@@ -108,14 +161,14 @@ export async function PUT(
         documentId: id,
         version: newVersion,
         timestamp: new Date(),
-        author: body.author || updatedDocument.author,
+        author: body.author || transformedDoc.author,
         changes: changes.length > 0 ? changes : ['Оновлено документ'],
-        content: updatedDocument.content,
-        title: updatedDocument.title
+        content: transformedDoc.content,
+        title: transformedDoc.title
       });
     }
 
-    return NextResponse.json(updatedDocument);
+    return NextResponse.json(transformedDoc);
   } catch (error) {
     console.error('Error updating document:', error);
     return NextResponse.json(
@@ -131,25 +184,48 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const userId = await getCurrentUserId();
     
-    const deletedDocument = getMockDocumentById(id);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
     
-    if (!deletedDocument) {
+    // Fetch document before deletion
+    const { data: document, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !document) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
 
-    const success = deleteMockDocument(id);
+    // Delete document from Supabase
+    const { error: deleteError } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
 
-    if (!success) {
+    if (deleteError) {
+      console.error('Error deleting document from Supabase:', deleteError);
       return NextResponse.json(
         { error: 'Failed to delete document' },
         { status: 500 }
       );
     }
 
+    const deletedDocument = transformDocument(document);
     return NextResponse.json({
       success: true,
       message: 'Document deleted successfully',
