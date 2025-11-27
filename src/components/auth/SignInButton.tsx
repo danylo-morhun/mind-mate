@@ -21,7 +21,7 @@ export default function SignInButton() {
           {session.user.image && (
             <img
               src={session.user.image}
-              alt={session.user.name || 'User'}
+              
               className="w-8 h-8 rounded-full"
             />
           )}

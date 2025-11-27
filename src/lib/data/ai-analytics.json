@@ -31,21 +31,56 @@
       "modelUsed": "gemini-1.5-flash",
       "replyLength": 1004,
       "userId": "danymorhun@gmail.com"
+    },
+    {
+      "id": "1756890872850",
+      "timestamp": "2025-09-03T09:14:32.850Z",
+      "emailId": "1990b2f51f3392b7",
+      "emailSubject": "Security alert",
+      "replyType": "confirmation",
+      "tone": "collaborative",
+      "language": "uk",
+      "templateId": "5",
+      "customInstructions": "якомога більше тексту",
+      "generationTime": 8.093,
+      "success": true,
+      "modelUsed": "gemini-1.5-flash",
+      "replyLength": 1375,
+      "userId": "danymorhun@gmail.com"
+    },
+    {
+      "id": "1756891040691",
+      "timestamp": "2025-09-03T09:17:20.691Z",
+      "emailId": "1990b2f51f3392b7",
+      "emailSubject": "Security alert",
+      "replyType": "confirmation",
+      "tone": "instructive",
+      "language": "uk",
+      "templateId": "5",
+      "customInstructions": "побільше тексту",
+      "generationTime": 7.293,
+      "success": true,
+      "modelUsed": "gemini-1.5-flash",
+      "replyLength": 1610,
+      "userId": "danymorhun@gmail.com"
     }
   ],
   "templates": [],
   "stats": {
-    "totalRepliesGenerated": 2,
+    "totalRepliesGenerated": 4,
     "repliesByType": {
-      "academic": 2
+      "academic": 2,
+      "confirmation": 2
     },
     "repliesByTone": {
-      "professional": 2
+      "professional": 2,
+      "collaborative": 1,
+      "instructive": 1
     },
-    "averageGenerationTime": 2.79,
-    "templatesUsed": 0,
+    "averageGenerationTime": 5.2415,
+    "templatesUsed": 2,
     "aiOnlyGeneration": 2,
     "successRate": 100,
-    "lastUpdated": "2025-09-02T21:32:17.775Z"
+    "lastUpdated": "2025-09-03T09:17:20.691Z"
   }
 }
