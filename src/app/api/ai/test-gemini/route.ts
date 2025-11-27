@@ -14,10 +14,8 @@ export async function GET() {
       );
     }
 
-    // Тестуємо підключення до Gemini
     const geminiClient = getGeminiClient();
     
-    // Простий тестовий запит
     const testPrompt = 'Привіт! Це тестовий запит для перевірки підключення до Gemini API. Відповідай українською мовою.';
     
     const startTime = Date.now();
@@ -32,7 +30,7 @@ export async function GET() {
       testResponse: response,
       responseTime: `${responseTime}ms`,
       timestamp: new Date().toISOString(),
-      model: process.env.GOOGLE_AI_MODEL || 'gemini-1.5-flash'
+      model: process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash'
     });
 
   } catch (error) {
@@ -69,7 +67,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Тестуємо генерацію з кастомним prompt
     const geminiClient = getGeminiClient();
     
     const startTime = Date.now();
@@ -84,7 +81,7 @@ export async function POST(request: NextRequest) {
       response: response,
       responseTime: `${responseTime}ms`,
       timestamp: new Date().toISOString(),
-      model: process.env.GOOGLE_AI_MODEL || 'gemini-1.5-flash'
+      model: process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash'
     });
 
   } catch (error) {

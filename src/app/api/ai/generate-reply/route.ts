@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Валідація параметрів
     if (!validateReplyType(replyType)) {
       return NextResponse.json(
         { error: 'Invalid reply type' },
@@ -75,10 +74,15 @@ export async function POST(request: NextRequest) {
         language
       });
       aiReply = await geminiClient.generateReply(promptContext.fullPrompt);
-      modelUsed = 'gemini-1.5-flash';
+      
+      if (!aiReply || aiReply.trim().length === 0) {
+        throw new Error('Отримано порожню відповідь від Gemini API');
+      }
+      
+      modelUsed = process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash';
     } catch (geminiError) {
       console.error('Gemini API failed, falling back to mock:', geminiError);
-      errorMessage = `Gemini API недоступний: ${geminiError}`;
+      errorMessage = `Gemini API недоступний: ${geminiError instanceof Error ? geminiError.message : String(geminiError)}`;
       aiReply = await generateMockAIReply({
         emailSubject,
         replyType,
@@ -108,7 +112,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Mock AI fallback function
 async function generateMockAIReply({
   emailSubject,
   replyType,
@@ -120,7 +123,6 @@ async function generateMockAIReply({
   templateId?: string;
   customInstructions?: string;
 }) {
-  // Симулюємо затримку AI
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   const templates = {
@@ -134,12 +136,10 @@ async function generateMockAIReply({
 
   let baseTemplate = templates[replyType as keyof typeof templates] || templates['formal'];
   
-  // Якщо є конкретний шаблон, використовуємо його
   if (templateId) {
     baseTemplate = `Використовую шаблон ${templateId}:\n\n${baseTemplate}`;
   }
 
-  // Генеруємо контекстну відповідь на основі типу та теми
   let content = '';
   
   if (replyType === 'academic') {
@@ -182,12 +182,10 @@ async function generateMockAIReply({
     content = 'Дякую за ваше повідомлення. Я обов\'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.';
   }
 
-  // Додаємо кастомні інструкції
   if (customInstructions) {
     content += `\n\nДодатково: ${customInstructions}`;
   }
 
-  // Форматуємо відповідь
   const reply = baseTemplate
     .replace('{subject}', emailSubject)
     .replace('{content}', content)

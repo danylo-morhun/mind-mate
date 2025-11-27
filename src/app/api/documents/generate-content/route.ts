@@ -174,7 +174,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Перевіряємо чи є шаблон для даного типу
     if (!documentTemplates[template as keyof typeof documentTemplates]) {
       return NextResponse.json(
         { error: `Template '${template}' is not supported` },
@@ -192,14 +191,12 @@ export async function POST(request: NextRequest) {
 
     const templateConfig = documentTemplates[template as keyof typeof documentTemplates];
     
-    // Формуємо промпт з контекстом
     const userPrompt = templateConfig.userPrompt
       .replace('{title}', title)
       .replace('{description}', description || 'Не вказано')
       .replace('{category}', category || 'Не вказано')
       .replace('{additionalContext}', additionalContext || 'Не вказано');
 
-    // Генеруємо контент за допомогою Gemini
     const fullPrompt = `${templateConfig.systemPrompt}\n\n${userPrompt}`;
     const generatedContent = await geminiClient.generateReply(fullPrompt);
 
@@ -209,7 +206,7 @@ export async function POST(request: NextRequest) {
       template,
       metadata: {
         generatedAt: new Date().toISOString(),
-        model: 'gemini-1.5-flash',
+        model: process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash',
         template,
         title,
         contentLength: generatedContent.length

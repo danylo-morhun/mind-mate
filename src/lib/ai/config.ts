@@ -14,8 +14,8 @@ export interface AIConfig {
 }
 
 export const AI_CONFIG: AIConfig = {
-  model: process.env.GOOGLE_AI_MODEL || 'gemini-pro',
-  maxTokens: parseInt(process.env.AI_MAX_TOKENS || '1000'),
+  model: process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash',
+  maxTokens: parseInt(process.env.AI_MAX_TOKENS || '4096'),
   temperature: parseFloat(process.env.AI_TEMPERATURE || '0.7'),
   topP: parseFloat(process.env.AI_TOP_P || '0.9'),
   defaultLanguage: 'uk',
@@ -51,7 +51,6 @@ export const LANGUAGES = {
   GERMAN: 'de'
 } as const;
 
-// Валідація параметрів
 export function validateReplyType(replyType: string): boolean {
   return Object.values(REPLY_TYPES).includes(replyType as keyof typeof REPLY_TYPES);
 }
@@ -64,7 +63,6 @@ export function validateLanguage(language: string): boolean {
   return Object.values(LANGUAGES).includes(language as keyof typeof LANGUAGES);
 }
 
-// Отримання описів для UI
 export function getReplyTypeLabel(replyType: string): string {
   const labels: Record<string, string> = {
     [REPLY_TYPES.ACADEMIC]: '🎓 Академічна',

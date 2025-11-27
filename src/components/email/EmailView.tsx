@@ -210,7 +210,7 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
               customInstructions: customInstructions || null,
               generationTime,
               success: true,
-              modelUsed: data.modelUsed || 'gemini-1.5-flash',
+              modelUsed: data.modelUsed || 'gemini-2.5-flash',
               replyLength: data.reply?.length || 0,
             }),
           });
