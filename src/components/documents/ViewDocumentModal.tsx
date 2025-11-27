@@ -69,14 +69,21 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
   const DocumentTypeIcon = documentTypeIcons[doc.type as keyof typeof documentTypeIcons] || FileText;
   const documentTypeName = documentTypeNames[doc.type as keyof typeof documentTypeNames] || 'Документ';
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('uk-UA', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatDate = (date: Date | string | undefined | null) => {
+    if (!date) return 'Невказано';
+    try {
+      const dateObj = date instanceof Date ? date : new Date(date);
+      if (isNaN(dateObj.getTime())) return 'Невказано';
+      return dateObj.toLocaleDateString('uk-UA', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Невказано';
+    }
   };
 
   const getVisibilityIcon = (visibility: string) => {
@@ -365,101 +372,200 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Детальна інформація</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Основна інформація */}
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Основна інформація</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Тип документа:</span>
-                      <span className="text-sm font-medium text-gray-900">{documentTypeName}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Категорія:</span>
-                      <span className="text-sm font-medium text-gray-900">{doc.category}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Шаблон:</span>
-                      <span className="text-sm font-medium text-gray-900">{doc.template}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Статус:</span>
-                      <span className="text-sm font-medium text-gray-900">{doc.status}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Версія:</span>
-                      <span className="text-sm font-medium text-gray-900">{doc.version}</span>
-                    </div>
-                  </div>
-                </div>
+              {/* Helper function to check if value is meaningful */}
+              {(() => {
+                const hasValue = (value: any): boolean => {
+                  if (value === null || value === undefined) return false;
+                  if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    return trimmed !== '' && 
+                           trimmed !== 'Невказано' && 
+                           trimmed !== 'Загальний' && 
+                           trimmed !== 'Не вказано' &&
+                           trimmed !== 'current_user';
+                  }
+                  if (typeof value === 'number') return value > 0;
+                  return true;
+                };
 
-                {/* Дати та власник */}
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Дати та власник</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Створено:</span>
-                      <span className="text-sm font-medium text-gray-900">{formatDate(document.createdDate)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Оновлено:</span>
-                      <span className="text-sm font-medium text-gray-900">{formatDate(doc.lastModified)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Власник:</span>
-                      <span className="text-sm font-medium text-gray-900">{doc.owner}</span>
-                    </div>
-                    {doc.metadata?.lastAccessed && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-500">Останній доступ:</span>
-                        <span className="text-sm font-medium text-gray-900">{formatDate(doc.metadata.lastAccessed)}</span>
+                const metadataFields: Array<{key: string, label: string, value: any, format?: (v: any) => string}> = [];
+                
+                // Основна інформація
+                if (documentTypeName) {
+                  metadataFields.push({ key: 'type', label: 'Тип документа', value: documentTypeName });
+                }
+                if (hasValue(doc.category)) {
+                  metadataFields.push({ key: 'category', label: 'Категорія', value: doc.category });
+                }
+                if (hasValue(doc.template) && doc.template !== 'blank') {
+                  metadataFields.push({ key: 'template', label: 'Шаблон', value: doc.template });
+                }
+                if (hasValue(doc.status) && doc.status !== 'draft') {
+                  metadataFields.push({ key: 'status', label: 'Статус', value: doc.status });
+                }
+                if (doc.version && doc.version > 1) {
+                  metadataFields.push({ key: 'version', label: 'Версія', value: doc.version });
+                }
+
+                // Дати
+                if (document.createdDate) {
+                  metadataFields.push({ 
+                    key: 'created', 
+                    label: 'Створено', 
+                    value: document.createdDate,
+                    format: formatDate 
+                  });
+                }
+                if (doc.lastModified) {
+                  metadataFields.push({ 
+                    key: 'modified', 
+                    label: 'Оновлено', 
+                    value: doc.lastModified,
+                    format: formatDate 
+                  });
+                }
+                if (doc.metadata?.lastAccessed) {
+                  metadataFields.push({ 
+                    key: 'lastAccessed', 
+                    label: 'Останній доступ', 
+                    value: doc.metadata.lastAccessed,
+                    format: formatDate 
+                  });
+                }
+
+                // Додаткові метадані
+                if (doc.metadata) {
+                  if (hasValue(doc.metadata.subject)) {
+                    metadataFields.push({ key: 'subject', label: 'Предмет', value: doc.metadata.subject });
+                  }
+                  if (hasValue(doc.metadata.semester)) {
+                    metadataFields.push({ key: 'semester', label: 'Семестр', value: doc.metadata.semester });
+                  }
+                  if (hasValue(doc.metadata.academicYear)) {
+                    metadataFields.push({ key: 'academicYear', label: 'Навчальний рік', value: doc.metadata.academicYear });
+                  }
+                  if (hasValue(doc.metadata.department)) {
+                    metadataFields.push({ key: 'department', label: 'Кафедра', value: doc.metadata.department });
+                  }
+                  if (hasValue(doc.metadata.course)) {
+                    metadataFields.push({ key: 'course', label: 'Курс', value: doc.metadata.course });
+                  }
+                  if (hasValue(doc.metadata.language) && doc.metadata.language !== 'uk') {
+                    metadataFields.push({ key: 'language', label: 'Мова', value: doc.metadata.language });
+                  }
+                  if (doc.metadata.wordCount && doc.metadata.wordCount > 0) {
+                    metadataFields.push({ key: 'wordCount', label: 'Кількість слів', value: doc.metadata.wordCount });
+                  }
+                  if (doc.metadata.pageCount && doc.metadata.pageCount > 0) {
+                    metadataFields.push({ key: 'pageCount', label: 'Кількість сторінок', value: doc.metadata.pageCount });
+                  }
+                  if (doc.metadata.accessCount && doc.metadata.accessCount > 0) {
+                    metadataFields.push({ key: 'accessCount', label: 'Кількість переглядів', value: doc.metadata.accessCount });
+                  }
+                }
+
+                // Автор
+                if (hasValue(doc.author)) {
+                  metadataFields.push({ key: 'author', label: 'Автор', value: doc.author });
+                }
+
+                // Власник (тільки якщо не стандартне значення)
+                if (hasValue(doc.owner)) {
+                  metadataFields.push({ key: 'owner', label: 'Власник', value: doc.owner });
+                }
+
+                // Групуємо поля по категоріях
+                const basicFields = metadataFields.filter(f => 
+                  ['type', 'category', 'template', 'status', 'version', 'author'].includes(f.key)
+                );
+                const dateFields = metadataFields.filter(f => 
+                  ['created', 'modified', 'lastAccessed'].includes(f.key)
+                );
+                const additionalFields = metadataFields.filter(f => 
+                  !['type', 'category', 'template', 'status', 'version', 'author', 'created', 'modified', 'lastAccessed', 'owner'].includes(f.key)
+                );
+                const ownerField = metadataFields.find(f => f.key === 'owner');
+
+                return (
+                  <>
+                    {basicFields.length > 0 && (
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-gray-900">Основна інформація</h4>
+                        <div className="space-y-3">
+                          {basicFields.map(field => (
+                            <div key={field.key} className="flex items-center justify-between">
+                              <span className="text-sm text-gray-500">{field.label}:</span>
+                              <span className="text-sm font-medium text-gray-900">
+                                {field.format ? field.format(field.value) : String(field.value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
 
-              {/* Теги */}
-              {doc.tags.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900">Теги</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {doc.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Додаткові метадані */}
-              {doc.metadata && (
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Додаткова інформація</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {doc.metadata.subject && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <span className="text-sm text-gray-500">Предмет</span>
-                        <p className="font-medium text-gray-900">{doc.metadata.subject}</p>
+                    {(dateFields.length > 0 || ownerField) && (
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-gray-900">Дати та власник</h4>
+                        <div className="space-y-3">
+                          {dateFields.map(field => (
+                            <div key={field.key} className="flex items-center justify-between">
+                              <span className="text-sm text-gray-500">{field.label}:</span>
+                              <span className="text-sm font-medium text-gray-900">
+                                {field.format ? field.format(field.value) : String(field.value)}
+                              </span>
+                            </div>
+                          ))}
+                          {ownerField && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-500">{ownerField.label}:</span>
+                              <span className="text-sm font-medium text-gray-900">{ownerField.value}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
-                    {doc.metadata.semester && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <span className="text-sm text-gray-500">Семестр</span>
-                        <p className="font-medium text-gray-900">{doc.metadata.semester}</p>
+
+                    {doc.tags.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-medium text-gray-900">Теги</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {doc.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <span className="text-sm text-gray-500">Кількість переглядів</span>
-                      <p className="font-medium text-gray-900">{doc.metadata.accessCount || 0}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+
+                    {additionalFields.length > 0 && (
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-gray-900">Додаткова інформація</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {additionalFields.map(field => (
+                            <div key={field.key} className="bg-gray-50 p-3 rounded-lg">
+                              <span className="text-sm text-gray-500">{field.label}</span>
+                              <p className="font-medium text-gray-900">
+                                {field.format ? field.format(field.value) : String(field.value)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {metadataFields.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>Метадані відсутні</p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 
