@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
 
     // Збираємо статистику з різних джерел
     const [gmailStats, aiStats, documentsStats, productivityStats, collaborationStats] = await Promise.all([
-      getGmailStatistics(session.accessToken, period, startDate, endDate),
-      getAIStatistics(period, startDate, endDate),
+      getGmailStatistics(session.accessToken, period),
+      getAIStatistics(period),
       getDocumentsStats(period),
       getProductivityStats(period),
       getCollaborationStats(period)
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Функція для збору Gmail статистики
-async function getGmailStatistics(accessToken: string, period: string, startDate?: string, endDate?: string) {
+async function getGmailStatistics(accessToken: string, period: string) {
   try {
     // Отримуємо листи за вказаний період
     const emailsResponse = await fetch(
@@ -128,7 +128,7 @@ async function getGmailStatistics(accessToken: string, period: string, startDate
 }
 
 // Функція для збору AI статистики
-async function getAIStatistics(period: string, startDate?: string, endDate?: string) {
+async function getAIStatistics(period: string) {
   try {
     // Читаємо реальну AI статистику з файлу
     const analyticsFilePath = path.join(process.cwd(), 'src/lib/data/ai-analytics.json');

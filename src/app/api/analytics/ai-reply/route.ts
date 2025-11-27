@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     try {
       const fileContent = await fs.readFile(analyticsFilePath, 'utf-8');
       analyticsData = JSON.parse(fileContent);
-    } catch (error) {
+    } catch {
       // Якщо файл не існує, створюємо базову структуру
       analyticsData = {
         replies: [],
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Отримуємо сесію користувача
     const session = await getServerSession(authOptions);

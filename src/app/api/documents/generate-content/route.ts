@@ -199,24 +199,9 @@ export async function POST(request: NextRequest) {
       .replace('{category}', category || 'Не вказано')
       .replace('{additionalContext}', additionalContext || 'Не вказано');
 
-    console.log('Generating content with Gemini:', {
-      template,
-      title,
-      description,
-      category,
-      type,
-      additionalContext
-    });
-
     // Генеруємо контент за допомогою Gemini
     const fullPrompt = `${templateConfig.systemPrompt}\n\n${userPrompt}`;
     const generatedContent = await geminiClient.generateReply(fullPrompt);
-
-    console.log('Content generated successfully:', {
-      template,
-      title,
-      contentLength: generatedContent.length
-    });
 
     return NextResponse.json({
       success: true,

@@ -7,16 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    console.log('Gmail API - Session:', {
-      hasSession: !!session,
-      hasAccessToken: !!session?.accessToken,
-      accessTokenLength: session?.accessToken?.length || 0
-    });
-    
     if (!session?.accessToken) {
-      console.log('Gmail API - No access token found');
       return NextResponse.json(
-        { error: 'Unauthorized - No access token' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }

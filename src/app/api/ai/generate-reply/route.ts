@@ -63,12 +63,7 @@ export async function POST(request: NextRequest) {
     let promptContext: ReturnType<typeof buildGeminiPrompt> | null = null;
 
     try {
-      // Спробуємо використати Gemini API
-      console.log('🔍 Attempting to use Gemini API...');
       const geminiClient = getGeminiClient();
-      console.log('✅ Gemini client created successfully');
-      
-      // Будуємо prompt для Gemini
       promptContext = buildGeminiPrompt({
         emailContent,
         emailSubject,
@@ -79,32 +74,17 @@ export async function POST(request: NextRequest) {
         tone,
         language
       });
-      console.log('📝 Prompt built successfully, length:', promptContext.fullPrompt.length);
-      
-      // Генеруємо відповідь через Gemini
-      console.log('🚀 Sending request to Gemini...');
       aiReply = await geminiClient.generateReply(promptContext.fullPrompt);
       modelUsed = 'gemini-1.5-flash';
-      
-      console.log('🎉 Gemini API success - Model:', modelUsed, 'Tokens:', aiReply.length);
-      
     } catch (geminiError) {
-      console.error('❌ Gemini API failed, falling back to mock:', geminiError);
+      console.error('Gemini API failed, falling back to mock:', geminiError);
       errorMessage = `Gemini API недоступний: ${geminiError}`;
-      
-      // Fallback до mock AI
-      console.log('🔄 Using mock AI fallback...');
       aiReply = await generateMockAIReply({
-        emailContent,
         emailSubject,
-        emailFrom,
         replyType,
         templateId,
-        customInstructions,
-        tone,
-        language
+        customInstructions
       });
-      console.log('✅ Mock AI fallback completed');
     }
 
     return NextResponse.json({
@@ -128,25 +108,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Mock AI функція (замінити на реальну Google AI API)
+// Mock AI fallback function
 async function generateMockAIReply({
-  emailContent,
   emailSubject,
-  emailFrom,
   replyType,
   templateId,
-  customInstructions,
-  tone,
-  language
+  customInstructions
 }: {
-  emailContent: string;
   emailSubject: string;
-  emailFrom: string;
   replyType: string;
   templateId?: string;
   customInstructions?: string;
-  tone?: string;
-  language?: string;
 }) {
   // Симулюємо затримку AI
   await new Promise(resolve => setTimeout(resolve, 1000));
