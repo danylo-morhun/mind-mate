@@ -11,8 +11,8 @@ const navigation = [
   { name: 'Gmail', href: '/email', icon: Mail },
   { name: 'Аналітика', href: '/dashboard', icon: BarChart3 },
   { name: 'Документи', href: '/documents', icon: FileText },
-  { name: 'Колаборація', href: '/collaboration', icon: Users },
-  { name: 'Оцінювання', href: '/grading', icon: GraduationCap },
+  // { name: 'Колаборація', href: '/collaboration', icon: Users },
+  // { name: 'Оцінювання', href: '/grading', icon: GraduationCap },
   { name: 'Налаштування', href: '/settings', icon: Settings },
 ];
 
