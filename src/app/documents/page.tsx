@@ -147,9 +147,73 @@ export default function DocumentsPage() {
     setIsShareModalOpen(true);
   };
 
-  const handleDocumentDownload = (document: any) => {
-    // TODO: Реалізувати завантаження документа
-    alert('Функція завантаження буде реалізована в наступному кроці');
+  const handleDocumentDownload = async (doc: any, format: string = 'txt') => {
+    try {
+      const response = await fetch(`/api/documents/${doc.id}/download?format=${format}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to download document' }));
+        const errorMessage = errorData.details || errorData.error || `Failed to download document (${response.status})`;
+        console.error('Download error:', errorData);
+        throw new Error(errorMessage);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Отримуємо ім'я файлу з заголовків
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = '';
+      
+      if (contentDisposition) {
+        // Спочатку намагаємося отримати з filename* (UTF-8)
+        const filenameStarMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (filenameStarMatch && filenameStarMatch[1]) {
+          try {
+            filename = decodeURIComponent(filenameStarMatch[1]);
+          } catch (e) {
+            console.warn('Failed to decode filename*:', e);
+          }
+        }
+        
+        // Якщо не вдалося, намагаємося з filename
+        if (!filename) {
+          const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+            // Видаляємо лапки якщо вони є
+            filename = filename.replace(/^["']|["']$/g, '');
+          }
+        }
+      }
+      
+      // Якщо не вдалося отримати з заголовків, генеруємо
+      if (!filename || !filename.includes('.')) {
+        const sanitizeFilename = (title: string): string => {
+          if (!title) return 'document';
+          return title
+            .replace(/[^a-z0-9а-яіїєґ\s]/gi, '') // Видаляємо спеціальні символи
+            .replace(/\s+/g, '_') // Замінюємо пробіли на підкреслення
+            .replace(/_+/g, '_') // Замінюємо множинні підкреслення на одне
+            .replace(/^_+|_+$/g, '') // Видаляємо підкреслення на початку та в кінці
+            .toLowerCase() || 'document';
+        };
+        const safeTitle = sanitizeFilename(doc.title || 'document');
+        const safeFormat = format || 'txt';
+        filename = `${safeTitle}.${safeFormat}`;
+      }
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert(`Помилка при завантаженні документа: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+    }
   };
 
   const handleToggleStar = (documentId: string) => {
@@ -305,6 +369,7 @@ export default function DocumentsPage() {
           setSelectedDocumentForView(null);
         }}
         onEdit={handleViewToEdit}
+        onShare={handleDocumentShare}
         document={selectedDocumentForView}
       />
 

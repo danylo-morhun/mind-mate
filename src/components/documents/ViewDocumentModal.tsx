@@ -33,6 +33,7 @@ interface ViewDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onEdit: (document: Document) => void;
+  onShare?: (document: Document) => void;
   document: Document | null;
 }
 
@@ -53,21 +54,20 @@ const documentTypeNames = {
 };
 
 const exportFormats = [
-  { id: 'pdf', name: 'PDF', description: 'Портативний формат документа', icon: FileText, color: 'text-red-600' },
   { id: 'docx', name: 'Word', description: 'Microsoft Word документ', icon: FileText, color: 'text-blue-600' },
   { id: 'txt', name: 'Текст', description: 'Простий текстовий файл', icon: FileText, color: 'text-gray-600' },
   { id: 'html', name: 'HTML', description: 'Веб-сторінка', icon: FileText, color: 'text-orange-600' }
 ];
 
-export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }: ViewDocumentModalProps) {
+export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, document: doc }: ViewDocumentModalProps) {
   const [activeTab, setActiveTab] = useState<'content' | 'metadata' | 'sharing'>('content');
   const [isExporting, setIsExporting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  if (!isOpen || !document) return null;
+  if (!isOpen || !doc) return null;
 
-  const DocumentTypeIcon = documentTypeIcons[document.type as keyof typeof documentTypeIcons] || FileText;
-  const documentTypeName = documentTypeNames[document.type as keyof typeof documentTypeNames] || 'Документ';
+  const DocumentTypeIcon = documentTypeIcons[doc.type as keyof typeof documentTypeIcons] || FileText;
+  const documentTypeName = documentTypeNames[doc.type as keyof typeof documentTypeNames] || 'Документ';
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('uk-UA', { 
@@ -107,26 +107,68 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
   };
 
   const handleExport = async (format: string) => {
+    if (!doc) return;
+    
     setIsExporting(true);
     try {
-      // TODO: Інтеграція з API експорту
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Імітація експорту
+      const response = await fetch(`/api/documents/${doc.id}/download?format=${format}`);
       
-      // Створюємо заглушку для завантаження
-      const blob = new Blob([document.content], { type: 'text/plain' });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to export document' }));
+        throw new Error(errorData.error || errorData.details || 'Failed to export document');
+      }
+
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${document.title}.${format}`;
+      
+      // Отримуємо ім'я файлу з заголовків
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = '';
+      
+      if (contentDisposition) {
+        // Спочатку намагаємося отримати з filename* (UTF-8)
+        const filenameStarMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (filenameStarMatch && filenameStarMatch[1]) {
+          try {
+            filename = decodeURIComponent(filenameStarMatch[1]);
+          } catch (e) {
+            console.warn('Failed to decode filename*:', e);
+          }
+        }
+        
+        // Якщо не вдалося, намагаємося з filename
+        if (!filename) {
+          const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].replace(/^["']|["']$/g, '');
+          }
+        }
+      }
+      
+      // Якщо не вдалося отримати з заголовків, генеруємо
+      if (!filename || !filename.includes('.')) {
+        const sanitizeFilename = (title: string): string => {
+          if (!title) return 'document';
+          return title
+            .replace(/[^a-z0-9а-яіїєґ\s]/gi, '')
+            .replace(/\s+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .toLowerCase() || 'document';
+        };
+        filename = `${sanitizeFilename(doc.title)}.${format}`;
+      }
+      
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
-      alert(`Документ експортовано у форматі ${format.toUpperCase()}`);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Помилка при експорті документа');
+      alert(`Помилка при експорті документа: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsExporting(false);
     }
@@ -145,7 +187,7 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
           <!DOCTYPE html>
           <html>
             <head>
-              <title>${document.title}</title>
+              <title>${doc.title}</title>
               <style>
                 body { font-family: Arial, sans-serif; margin: 20px; }
                 h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
@@ -155,16 +197,16 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
               </style>
             </head>
             <body>
-              <h1>${document.title}</h1>
+              <h1>${doc.title}</h1>
               <div class="metadata">
                 <p><strong>Тип:</strong> ${documentTypeName}</p>
-                <p><strong>Категорія:</strong> ${document.category}</p>
-                <p><strong>Версія:</strong> ${document.version}</p>
-                <p><strong>Створено:</strong> ${formatDate(document.createdDate)}</p>
-                <p><strong>Оновлено:</strong> ${formatDate(document.lastModified)}</p>
+                <p><strong>Категорія:</strong> ${doc.category}</p>
+                <p><strong>Версія:</strong> ${doc.version}</p>
+                <p><strong>Створено:</strong> ${formatDate(doc.createdDate)}</p>
+                <p><strong>Оновлено:</strong> ${formatDate(doc.lastModified)}</p>
               </div>
               <div class="content">
-                ${document.content.replace(/\n/g, '<br>')}
+                ${doc.content.replace(/\n/g, '<br>')}
               </div>
             </body>
           </html>
@@ -183,8 +225,10 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
   };
 
   const handleShare = () => {
-    // TODO: Відкрити модальне вікно поширення
-    alert('Функція поширення буде реалізована в наступному кроці');
+    if (!doc) return;
+    if (onShare) {
+      onShare(doc);
+    }
   };
 
   return (
@@ -197,15 +241,15 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
               <DocumentTypeIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{document.title}</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{doc.title}</h2>
               <p className="text-sm text-gray-500">
-                {documentTypeName} • Версія {document.version} • Остання зміна {formatDate(document.lastModified)}
+                {documentTypeName} • Версія {doc.version} • Остання зміна {formatDate(doc.lastModified)}
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => onEdit(document)}
+              onClick={() => onEdit(doc)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <FileText className="w-4 h-4" />
@@ -298,19 +342,19 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
           {activeTab === 'content' && (
             <div className="space-y-6">
               <div className="prose max-w-none">
-                <h1 className="text-2xl font-bold text-gray-900 mb-4">{document.title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">{doc.title}</h1>
                 
-                {document.description && (
+                {doc.description && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                     <h2 className="text-lg font-semibold text-blue-900 mb-2">Опис</h2>
-                    <p className="text-blue-800">{document.description}</p>
+                    <p className="text-blue-800">{doc.description}</p>
                   </div>
                 )}
 
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Контент документа</h2>
                   <div className="whitespace-pre-wrap font-mono text-sm text-gray-700 leading-relaxed">
-                    {document.content}
+                    {doc.content}
                   </div>
                 </div>
               </div>
@@ -332,19 +376,19 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Категорія:</span>
-                      <span className="text-sm font-medium text-gray-900">{document.category}</span>
+                      <span className="text-sm font-medium text-gray-900">{doc.category}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Шаблон:</span>
-                      <span className="text-sm font-medium text-gray-900">{document.template}</span>
+                      <span className="text-sm font-medium text-gray-900">{doc.template}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Статус:</span>
-                      <span className="text-sm font-medium text-gray-900">{document.status}</span>
+                      <span className="text-sm font-medium text-gray-900">{doc.status}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Версія:</span>
-                      <span className="text-sm font-medium text-gray-900">{document.version}</span>
+                      <span className="text-sm font-medium text-gray-900">{doc.version}</span>
                     </div>
                   </div>
                 </div>
@@ -359,16 +403,16 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Оновлено:</span>
-                      <span className="text-sm font-medium text-gray-900">{formatDate(document.lastModified)}</span>
+                      <span className="text-sm font-medium text-gray-900">{formatDate(doc.lastModified)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Власник:</span>
-                      <span className="text-sm font-medium text-gray-900">{document.owner}</span>
+                      <span className="text-sm font-medium text-gray-900">{doc.owner}</span>
                     </div>
-                    {document.metadata?.lastAccessed && (
+                    {doc.metadata?.lastAccessed && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500">Останній доступ:</span>
-                        <span className="text-sm font-medium text-gray-900">{formatDate(document.metadata.lastAccessed)}</span>
+                        <span className="text-sm font-medium text-gray-900">{formatDate(doc.metadata.lastAccessed)}</span>
                       </div>
                     )}
                   </div>
@@ -376,11 +420,11 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
               </div>
 
               {/* Теги */}
-              {document.tags.length > 0 && (
+              {doc.tags.length > 0 && (
                 <div className="space-y-3">
                   <h4 className="font-medium text-gray-900">Теги</h4>
                   <div className="flex flex-wrap gap-2">
-                    {document.tags.map((tag, index) => (
+                    {doc.tags.map((tag, index) => (
                       <span
                         key={index}
                         className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
@@ -393,25 +437,25 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
               )}
 
               {/* Додаткові метадані */}
-              {document.metadata && (
+              {doc.metadata && (
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Додаткова інформація</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {document.metadata.subject && (
+                    {doc.metadata.subject && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <span className="text-sm text-gray-500">Предмет</span>
-                        <p className="font-medium text-gray-900">{document.metadata.subject}</p>
+                        <p className="font-medium text-gray-900">{doc.metadata.subject}</p>
                       </div>
                     )}
-                    {document.metadata.semester && (
+                    {doc.metadata.semester && (
                       <div className="bg-gray-50 p-3 rounded-lg">
                         <span className="text-sm text-gray-500">Семестр</span>
-                        <p className="font-medium text-gray-900">{document.metadata.semester}</p>
+                        <p className="font-medium text-gray-900">{doc.metadata.semester}</p>
                       </div>
                     )}
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <span className="text-sm text-gray-500">Кількість переглядів</span>
-                      <p className="font-medium text-gray-900">{document.metadata.accessCount || 0}</p>
+                      <p className="font-medium text-gray-900">{doc.metadata.accessCount || 0}</p>
                     </div>
                   </div>
                 </div>
@@ -430,15 +474,15 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
                   <h4 className="font-medium text-gray-900">Видимість документа</h4>
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
                     {(() => {
-                      const Icon = getVisibilityIcon(document.visibility);
+                      const Icon = getVisibilityIcon(doc.visibility);
                       return <Icon className="w-5 h-5 text-gray-600" />;
                     })()}
                     <div>
-                      <div className="font-medium text-gray-900">{getVisibilityText(document.visibility)}</div>
+                      <div className="font-medium text-gray-900">{getVisibilityText(doc.visibility)}</div>
                       <div className="text-sm text-gray-500">
-                        {document.visibility === 'private' && 'Тільки ви можете бачити'}
-                        {document.visibility === 'shared' && 'Доступ для обранних користувачів'}
-                        {document.visibility === 'public' && 'Доступ для всіх'}
+                        {doc.visibility === 'private' && 'Тільки ви можете бачити'}
+                        {doc.visibility === 'shared' && 'Доступ для обранних користувачів'}
+                        {doc.visibility === 'public' && 'Доступ для всіх'}
                       </div>
                     </div>
                   </div>
@@ -448,11 +492,11 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
                 <div className="space-y-3">
                   <h4 className="font-medium text-gray-900">Рівень доступу для співпрацівників</h4>
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <div className="font-medium text-gray-900">{getAccessLevelText(document.accessLevel)}</div>
+                    <div className="font-medium text-gray-900">{getAccessLevelText(doc.accessLevel)}</div>
                     <div className="text-sm text-gray-500">
-                      {document.accessLevel === 'view' && 'Тільки перегляд документа'}
-                      {document.accessLevel === 'comment' && 'Можна коментувати'}
-                      {document.accessLevel === 'edit' && 'Повний доступ до редагування'}
+                      {doc.accessLevel === 'view' && 'Тільки перегляд документа'}
+                      {doc.accessLevel === 'comment' && 'Можна коментувати'}
+                      {doc.accessLevel === 'edit' && 'Повний доступ до редагування'}
                     </div>
                   </div>
                 </div>
@@ -461,14 +505,14 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
               {/* Співпрацівники */}
               <div className="space-y-3">
                 <h4 className="font-medium text-gray-900">Співпрацівники</h4>
-                {document.collaborators.length > 0 ? (
+                {doc.collaborators.length > 0 ? (
                   <div className="space-y-2">
-                    {document.collaborators.map((collaborator, index) => (
+                    {doc.collaborators.map((collaborator, index) => (
                       <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
                         <User className="w-4 h-4 text-green-600" />
                         <span className="text-sm font-medium text-green-800">{collaborator}</span>
                         <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                          {getAccessLevelText(document.accessLevel)}
+                          {getAccessLevelText(doc.accessLevel)}
                         </span>
                       </div>
                     ))}
@@ -482,20 +526,20 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, document }:
               </div>
 
               {/* Статистика доступу */}
-              {document.metadata && (
+              {doc.metadata && (
                 <div className="space-y-3">
                   <h4 className="font-medium text-gray-900">Статистика доступу</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-blue-50 p-3 rounded-lg text-center">
-                      <div className="text-2xl font-bold text-blue-600">{document.metadata.accessCount || 0}</div>
+                      <div className="text-2xl font-bold text-blue-600">{doc.metadata.accessCount || 0}</div>
                       <div className="text-sm text-blue-600">Переглядів</div>
                     </div>
                     <div className="bg-green-50 p-3 rounded-lg text-center">
-                      <div className="text-2xl font-bold text-green-600">{document.collaborators.length}</div>
+                      <div className="text-2xl font-bold text-green-600">{doc.collaborators.length}</div>
                       <div className="text-sm text-green-600">Співпрацівників</div>
                     </div>
                     <div className="bg-purple-50 p-3 rounded-lg text-center">
-                      <div className="text-2xl font-bold text-purple-600">{document.tags.length}</div>
+                      <div className="text-2xl font-bold text-purple-600">{doc.tags.length}</div>
                       <div className="text-sm text-purple-600">Тегів</div>
                     </div>
                   </div>
