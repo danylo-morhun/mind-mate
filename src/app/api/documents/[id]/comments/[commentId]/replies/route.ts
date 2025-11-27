@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getMockCommentById,
-  addMockCommentReply 
-} from '@/lib/mock-comments';
-import { getMockDocumentById } from '@/lib/mock-documents';
+import { getCurrentUserId, transformDocument } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 
 export async function POST(
   request: NextRequest,
@@ -12,19 +9,28 @@ export async function POST(
   try {
     const { id, commentId } = await params;
     const body = await request.json();
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
-    if (!document) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Document not found' },
-        { status: 404 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
+
+    const supabase = createServerClient();
     
-    const comment = getMockCommentById(commentId);
-    if (!comment || comment.documentId !== id) {
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
-        { error: 'Comment not found' },
+        { error: 'Document not found' },
         { status: 404 }
       );
     }
@@ -36,19 +42,16 @@ export async function POST(
       );
     }
     
-    const updatedComment = addMockCommentReply(commentId, {
+    // For now, return a reply object (can be stored in database later)
+    const newReply = {
+      id: `reply_${Date.now()}`,
+      commentId: commentId,
       author: body.author,
-      content: body.content
-    });
+      content: body.content,
+      createdAt: new Date().toISOString()
+    };
     
-    if (!updatedComment) {
-      return NextResponse.json(
-        { error: 'Failed to add reply' },
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json(updatedComment, { status: 201 });
+    return NextResponse.json(newReply, { status: 201 });
   } catch (error) {
     console.error('Error adding reply:', error);
     return NextResponse.json(

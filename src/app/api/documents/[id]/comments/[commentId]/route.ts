@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getMockCommentById,
-  updateMockComment,
-  deleteMockComment 
-} from '@/lib/mock-comments';
-import { getMockDocumentById } from '@/lib/mock-documents';
+import { getCurrentUserId, transformDocument } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
@@ -12,26 +8,37 @@ export async function GET(
 ) {
   try {
     const { id, commentId } = await params;
+    const userId = await getCurrentUserId();
     
-    // Перевіряємо, чи існує документ
-    const document = getMockDocumentById(id);
-    if (!document) {
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
+    
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
     
-    const comment = getMockCommentById(commentId);
-    
-    if (!comment || comment.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Comment not found' },
-        { status: 404 }
-      );
-    }
-    
-    return NextResponse.json(comment);
+    // For now, return 404 (comments can be stored in database later)
+    return NextResponse.json(
+      { error: 'Comment not found' },
+      { status: 404 }
+    );
   } catch (error) {
     console.error('Error fetching comment:', error);
     return NextResponse.json(
@@ -48,36 +55,37 @@ export async function PUT(
   try {
     const { id, commentId } = await params;
     const body = await request.json();
+    const userId = await getCurrentUserId();
     
-    // Перевіряємо, чи існує документ
-    const document = getMockDocumentById(id);
-    if (!document) {
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
+    
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
     
-    const existingComment = getMockCommentById(commentId);
-    if (!existingComment || existingComment.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Comment not found' },
-        { status: 404 }
-      );
-    }
-    
-    const updatedComment = updateMockComment(commentId, {
-      content: body.content || existingComment.content
-    });
-    
-    if (!updatedComment) {
-      return NextResponse.json(
-        { error: 'Failed to update comment' },
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json(updatedComment);
+    // For now, return 404 (comments can be stored in database later)
+    return NextResponse.json(
+      { error: 'Comment not found' },
+      { status: 404 }
+    );
   } catch (error) {
     console.error('Error updating comment:', error);
     return NextResponse.json(
@@ -93,36 +101,37 @@ export async function DELETE(
 ) {
   try {
     const { id, commentId } = await params;
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
-    if (!document) {
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
+    
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
     
-    const existingComment = getMockCommentById(commentId);
-    if (!existingComment || existingComment.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Comment not found' },
-        { status: 404 }
-      );
-    }
-    
-    const success = deleteMockComment(commentId);
-    
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Failed to delete comment' },
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Comment deleted successfully'
-    });
+    // For now, return 404 (comments can be stored in database later)
+    return NextResponse.json(
+      { error: 'Comment not found' },
+      { status: 404 }
+    );
   } catch (error) {
     console.error('Error deleting comment:', error);
     return NextResponse.json(

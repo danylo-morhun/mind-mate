@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getMockCommentsByDocumentId, 
-  addMockComment 
-} from '@/lib/mock-comments';
-import { getMockDocumentById } from '@/lib/mock-documents';
+import { getCurrentUserId, transformDocument } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
@@ -11,18 +8,34 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
-    if (!document) {
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
+    
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
     
-    const comments = getMockCommentsByDocumentId(id);
-    
-    return NextResponse.json(comments);
+    // For now, return empty array (comments can be stored in database later)
+    return NextResponse.json([]);
   } catch (error) {
     console.error('Error fetching comments:', error);
     return NextResponse.json(
@@ -39,9 +52,26 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
-    if (!document) {
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
+    
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
@@ -55,12 +85,15 @@ export async function POST(
       );
     }
     
-    const newComment = addMockComment({
+    // For now, return a comment object (can be stored in database later)
+    const newComment = {
+      id: `comment_${Date.now()}`,
       documentId: id,
       author: body.author,
       content: body.content,
+      createdAt: new Date().toISOString(),
       replies: []
-    });
+    };
     
     return NextResponse.json(newComment, { status: 201 });
   } catch (error) {
