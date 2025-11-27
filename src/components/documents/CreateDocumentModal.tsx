@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { X, FileText, BookOpen, FileSpreadsheet, Presentation, File, Users, Lock, Globe, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { X, FileText, BookOpen, FileSpreadsheet, Presentation, File, Users, Lock, Globe, Eye, EyeOff, ExternalLink, Loader2 } from 'lucide-react';
 
 interface CreateDocumentModalProps {
   isOpen: boolean;
@@ -406,9 +406,19 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
                     <button
                       onClick={generateContentWithAI}
                       disabled={isGenerating || !formData.title}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {isGenerating ? '🔄 Генеруємо...' : '🚀 Згенерувати контент'}
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Генеруємо...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>🚀</span>
+                          <span>Згенерувати контент</span>
+                        </>
+                      )}
                     </button>
                   </div>
                   
@@ -630,7 +640,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
               >
                 {isCreatingGoogleDoc ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Створення...</span>
                   </>
                 ) : (

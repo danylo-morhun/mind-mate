@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { X, FileText, Save, History, Users, Eye, EyeOff, Lock, Globe, Tag, MessageSquare, Clock, User, Edit } from 'lucide-react';
+import { X, FileText, Save, History, Users, Eye, EyeOff, Lock, Globe, Tag, MessageSquare, Clock, User, Edit, Loader2 } from 'lucide-react';
 
 interface Document {
   id: string;
@@ -391,8 +391,17 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
                       disabled={isSaving}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      <Save className="w-4 h-4" />
-                      {isSaving ? 'Зберігаємо...' : 'Зберегти'}
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Зберігаємо...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Зберегти</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 )}
@@ -437,9 +446,19 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
                     <button
                       onClick={handleImproveContentWithAI}
                       disabled={isImproving || !formData.title}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {isImproving ? '🔄 Покращуємо...' : '✨ Покрашити контент'}
+                      {isImproving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Покращуємо...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>✨</span>
+                          <span>Покрашити контент</span>
+                        </>
+                      )}
                     </button>
                   </div>
                   
