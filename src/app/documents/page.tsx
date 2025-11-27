@@ -16,7 +16,8 @@ import {
   Star,
   Clock,
   User,
-  Tag
+  Tag,
+  Loader2
 } from 'lucide-react';
 import { useDocuments } from '@/contexts/DocumentsContext';
 import DocumentList from '@/components/documents/DocumentList';
@@ -50,6 +51,11 @@ export default function DocumentsPage() {
   const [selectedDocumentForView, setSelectedDocumentForView] = useState<any>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [selectedDocumentForShare, setSelectedDocumentForShare] = useState<any>(null);
+  const [isExportingToGoogleDocs, setIsExportingToGoogleDocs] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
   const categories = [
     { id: 'all', name: 'Всі категорії', icon: FolderOpen, color: 'text-gray-600' },
@@ -106,25 +112,32 @@ export default function DocumentsPage() {
 
   const handleDocumentDelete = async (documentId: string) => {
     if (confirm('Ви впевнені, що хочете видалити цей документ?')) {
+      setIsDeleting(documentId);
       try {
         await deleteDocument(documentId);
         alert('Документ успішно видалено!');
       } catch (error) {
         alert('Помилка при видаленні документа');
+      } finally {
+        setIsDeleting(null);
       }
     }
   };
 
   const handleCreateDocument = async (documentData: any) => {
+    setIsCreating(true);
     try {
       await createDocument(documentData);
       alert('Документ успішно створено!');
     } catch (error) {
       alert('Помилка при створенні документа');
+    } finally {
+      setIsCreating(false);
     }
   };
 
   const handleEditDocument = async (updatedDocument: any) => {
+    setIsUpdating(updatedDocument.id);
     try {
       await updateDocument(updatedDocument.id, updatedDocument);
       alert('Документ успішно оновлено!');
@@ -132,6 +145,8 @@ export default function DocumentsPage() {
       setSelectedDocumentForEdit(null);
     } catch (error) {
       alert('Помилка при оновленні документа');
+    } finally {
+      setIsUpdating(null);
     }
   };
 
@@ -148,6 +163,7 @@ export default function DocumentsPage() {
   };
 
   const handleExportToGoogleDocs = async (doc: any) => {
+    setIsExportingToGoogleDocs(doc.id);
     try {
       const response = await fetch(`/api/documents/${doc.id}/export-to-google-docs`, {
         method: 'POST',
@@ -177,10 +193,13 @@ export default function DocumentsPage() {
     } catch (error) {
       console.error('Error exporting to Google Docs:', error);
       alert(`Помилка при експорті до Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+    } finally {
+      setIsExportingToGoogleDocs(null);
     }
   };
 
   const handleDocumentDownload = async (doc: any, format: string = 'txt') => {
+    setIsDownloading(`${doc.id}-${format}`);
     try {
       const response = await fetch(`/api/documents/${doc.id}/download?format=${format}`);
       
@@ -246,6 +265,8 @@ export default function DocumentsPage() {
     } catch (error) {
       console.error('Error downloading document:', error);
       alert(`Помилка при завантаженні документа: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+    } finally {
+      setIsDownloading(null);
     }
   };
 
@@ -273,10 +294,20 @@ export default function DocumentsPage() {
           </div>
           <button 
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={isCreating}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="h-5 w-5" />
-            Створити документ
+            {isCreating ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Створення...
+              </>
+            ) : (
+              <>
+                <Plus className="h-5 w-5" />
+                Створити документ
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -373,6 +404,10 @@ export default function DocumentsPage() {
             onExportToGoogleDocs={handleExportToGoogleDocs}
             onToggleStar={handleToggleStar}
             starredDocuments={starredDocuments}
+            isExportingToGoogleDocs={isExportingToGoogleDocs}
+            isDownloading={isDownloading}
+            isDeleting={isDeleting}
+            isUpdating={isUpdating}
           />
         </div>
       </div>

@@ -16,6 +16,10 @@ interface DocumentListProps {
   onExportToGoogleDocs?: (document: Document) => void;
   onToggleStar: (documentId: string) => void;
   starredDocuments?: string[];
+  isExportingToGoogleDocs?: string | null;
+  isDownloading?: string | null;
+  isDeleting?: string | null;
+  isUpdating?: string | null;
 }
 
 export default function DocumentList({
@@ -28,7 +32,11 @@ export default function DocumentList({
   onDownload,
   onExportToGoogleDocs,
   onToggleStar,
-  starredDocuments = []
+  starredDocuments = [],
+  isExportingToGoogleDocs,
+  isDownloading,
+  isDeleting,
+  isUpdating
 }: DocumentListProps) {
   const { state } = useDocuments();
 
@@ -81,6 +89,10 @@ export default function DocumentList({
             onExportToGoogleDocs={onExportToGoogleDocs}
             onToggleStar={onToggleStar}
             isStarred={starredDocuments.includes(document.id)}
+            isExportingToGoogleDocs={isExportingToGoogleDocs === document.id}
+            isDownloading={isDownloading?.startsWith(document.id)}
+            isDeleting={isDeleting === document.id}
+            isUpdating={isUpdating === document.id}
           />
         ))}
       </div>

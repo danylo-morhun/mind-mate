@@ -16,7 +16,8 @@ import {
   Tag,
   Share2,
   Download,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { Document, DocumentType, DocumentCategory, DocumentStatus } from '@/lib/types';
 
@@ -30,6 +31,10 @@ interface DocumentCardProps {
   onExportToGoogleDocs?: (document: Document) => void;
   onToggleStar: (documentId: string) => void;
   isStarred?: boolean;
+  isExportingToGoogleDocs?: boolean;
+  isDownloading?: boolean;
+  isDeleting?: boolean;
+  isUpdating?: boolean;
 }
 
 export default function DocumentCard({
@@ -41,7 +46,11 @@ export default function DocumentCard({
   onDownload,
   onExportToGoogleDocs,
   onToggleStar,
-  isStarred = false
+  isStarred = false,
+  isExportingToGoogleDocs = false,
+  isDownloading = false,
+  isDeleting = false,
+  isUpdating = false
 }: DocumentCardProps) {
   // Отримання іконки по типу документа
   const getDocumentIcon = (type: DocumentType) => {
@@ -253,10 +262,15 @@ export default function DocumentCard({
             </button>
             <button
               onClick={() => onEdit(document)}
-              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+              disabled={isUpdating}
+              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
               title="Редагувати"
             >
-              <Edit className="h-4 w-4" />
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Edit className="h-4 w-4" />
+              )}
             </button>
             <button
               onClick={() => onShare(document)}
@@ -267,18 +281,28 @@ export default function DocumentCard({
             </button>
             <button
               onClick={() => onDownload(document)}
-              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              disabled={isDownloading}
+              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
               title="Завантажити"
             >
-              <Download className="h-4 w-4" />
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
             </button>
             {onExportToGoogleDocs && !document.googleDocId && (
               <button
                 onClick={() => onExportToGoogleDocs(document)}
-                className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                disabled={isExportingToGoogleDocs}
+                className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
                 title="Експортувати до Google Docs"
               >
-                <ExternalLink className="h-4 w-4" />
+                {isExportingToGoogleDocs ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4" />
+                )}
               </button>
             )}
             {document.googleDocUrl && (
@@ -295,10 +319,15 @@ export default function DocumentCard({
             )}
             <button
               onClick={() => onDelete(document.id)}
-              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+              disabled={isDeleting}
+              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
               title="Видалити"
             >
-              <Trash2 className="h-4 w-4" />
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
             </button>
           </div>
         </div>
