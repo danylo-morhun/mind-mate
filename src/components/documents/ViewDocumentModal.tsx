@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { X, FileText, Download, Printer, Share2, Eye, Users, Lock, Globe, Tag, Calendar, User, File, BookOpen, FileSpreadsheet, Presentation } from 'lucide-react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { X, FileText, Download, Printer, Share2, Eye, Users, Lock, Globe, Tag, Calendar, User, File, BookOpen, FileSpreadsheet, Presentation, Loader2 } from 'lucide-react';
+import { marked } from 'marked';
 
 interface Document {
   id: string;
@@ -63,6 +64,23 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
   const [activeTab, setActiveTab] = useState<'content' | 'metadata' | 'sharing'>('content');
   const [isExporting, setIsExporting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+
+  // Configure marked for markdown parsing
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+  });
+
+  // Parse markdown content
+  const parsedContent = useMemo(() => {
+    if (!doc?.content) return '';
+    try {
+      return marked.parse(doc.content);
+    } catch (error) {
+      console.error('Error parsing markdown:', error);
+      return doc.content.replace(/\n/g, '<br>');
+    }
+  }, [doc?.content]);
 
   if (!isOpen || !doc) return null;
 
@@ -184,8 +202,21 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
   const handlePrint = async () => {
     setIsPrinting(true);
     try {
-      // TODO: Інтеграція з системою друку
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Імітація друку
+      // Parse markdown for print
+      let printContent = '';
+      try {
+        printContent = marked.parse(doc.content || '');
+      } catch (error) {
+        console.error('Error parsing markdown for print:', error);
+        printContent = (doc.content || '').replace(/\n/g, '<br>');
+      }
+      
+      // Escape HTML for title and metadata
+      const escapeHtml = (text: string) => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      };
       
       // Створюємо нове вікно для друку
       const printWindow = window.open('', '_blank');
@@ -194,26 +225,39 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
           <!DOCTYPE html>
           <html>
             <head>
-              <title>${doc.title}</title>
+              <title>${escapeHtml(doc.title)}</title>
               <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
+                body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
                 h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                h2 { color: #2563eb; margin-top: 30px; margin-bottom: 15px; }
+                h3 { color: #3b82f6; margin-top: 25px; margin-bottom: 12px; }
                 .metadata { background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; }
                 .content { line-height: 1.6; }
+                .content p { margin: 15px 0; }
+                .content ul, .content ol { margin: 15px 0; padding-left: 30px; }
+                .content li { margin: 8px 0; }
+                .content code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+                .content pre { background: #1e293b; color: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto; }
+                .content pre code { background: transparent; padding: 0; }
+                .content blockquote { border-left: 4px solid #3b82f6; padding-left: 20px; margin: 20px 0; color: #64748b; font-style: italic; }
+                .content table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                .content table th, .content table td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; }
+                .content table th { background: #3b82f6; color: white; }
+                .content strong { font-weight: 700; }
                 @media print { body { margin: 0; } }
               </style>
             </head>
             <body>
-              <h1>${doc.title}</h1>
+              <h1>${escapeHtml(doc.title)}</h1>
               <div class="metadata">
-                <p><strong>Тип:</strong> ${documentTypeName}</p>
-                <p><strong>Категорія:</strong> ${doc.category}</p>
-                <p><strong>Версія:</strong> ${doc.version}</p>
-                <p><strong>Створено:</strong> ${formatDate(doc.createdDate)}</p>
-                <p><strong>Оновлено:</strong> ${formatDate(doc.lastModified)}</p>
+                <p><strong>Тип:</strong> ${escapeHtml(documentTypeName)}</p>
+                <p><strong>Категорія:</strong> ${escapeHtml(doc.category || 'Невказано')}</p>
+                <p><strong>Версія:</strong> ${doc.version || '1'}</p>
+                <p><strong>Створено:</strong> ${escapeHtml(formatDate(doc.createdDate))}</p>
+                <p><strong>Оновлено:</strong> ${escapeHtml(formatDate(doc.lastModified))}</p>
               </div>
               <div class="content">
-                ${doc.content.replace(/\n/g, '<br>')}
+                ${printContent}
               </div>
             </body>
           </html>
@@ -221,8 +265,6 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
         printWindow.document.close();
         printWindow.print();
       }
-      
-      alert('Документ надіслано на друк');
     } catch (error) {
       console.error('Print error:', error);
       alert('Помилка при друку документа');
@@ -280,8 +322,17 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
                 disabled={isPrinting}
                 className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
               >
-                <Printer className="w-4 h-4" />
-                {isPrinting ? 'Друкуємо...' : 'Друкувати'}
+                {isPrinting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Друкуємо...
+                  </>
+                ) : (
+                  <>
+                    <Printer className="w-4 h-4" />
+                    Друкувати
+                  </>
+                )}
               </button>
               <button
                 onClick={handleShare}
@@ -308,7 +359,11 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
                     }`}
                     title={format.description}
                   >
-                    <Icon className={`w-4 h-4 ${format.color}`} />
+                    {isExporting ? (
+                      <Loader2 className={`w-4 h-4 ${format.color} animate-spin`} />
+                    ) : (
+                      <Icon className={`w-4 h-4 ${format.color}`} />
+                    )}
                     {format.name}
                   </button>
                 );
@@ -360,9 +415,10 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
 
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Контент документа</h2>
-                  <div className="whitespace-pre-wrap font-mono text-sm text-gray-700 leading-relaxed">
-                    {doc.content}
-                  </div>
+                  <div 
+                    className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: parsedContent }}
+                  />
                 </div>
               </div>
             </div>
