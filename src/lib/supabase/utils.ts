@@ -59,6 +59,8 @@ export function transformDocument(dbDoc: any) {
     metadata: dbDoc.metadata || {},
     aiGenerated: dbDoc.ai_generated || false,
     templateId: dbDoc.template_id || undefined,
+    googleDocId: dbDoc.google_doc_id || undefined,
+    googleDocUrl: dbDoc.google_doc_url || undefined,
   };
 }
 
@@ -88,6 +90,8 @@ export function transformDocumentForDb(doc: any, userId: string) {
     metadata: doc.metadata || {},
     ai_generated: doc.aiGenerated || false,
     template_id: doc.templateId || null,
+    google_doc_id: doc.googleDocId || null,
+    google_doc_url: doc.googleDocUrl || null,
     user_id: userId,
   };
 }
