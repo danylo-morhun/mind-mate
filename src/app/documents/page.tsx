@@ -147,6 +147,39 @@ export default function DocumentsPage() {
     setIsShareModalOpen(true);
   };
 
+  const handleExportToGoogleDocs = async (doc: any) => {
+    try {
+      const response = await fetch(`/api/documents/${doc.id}/export-to-google-docs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to export to Google Docs' }));
+        throw new Error(errorData.error || 'Failed to export to Google Docs');
+      }
+
+      const result = await response.json();
+      
+      if (result.url) {
+        // Відкриваємо Google Docs в новій вкладці
+        window.open(result.url, '_blank');
+        alert('Документ успішно експортовано до Google Docs!');
+        
+        // Оновлюємо список документів, щоб показати посилання
+        loadDocuments();
+      } else {
+        throw new Error('No URL returned from export');
+      }
+    } catch (error) {
+      console.error('Error exporting to Google Docs:', error);
+      alert(`Помилка при експорті до Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+    }
+  };
+
   const handleDocumentDownload = async (doc: any, format: string = 'txt') => {
     try {
       const response = await fetch(`/api/documents/${doc.id}/download?format=${format}`);
@@ -337,6 +370,7 @@ export default function DocumentsPage() {
             onDelete={handleDocumentDelete}
             onShare={handleDocumentShare}
             onDownload={handleDocumentDownload}
+            onExportToGoogleDocs={handleExportToGoogleDocs}
             onToggleStar={handleToggleStar}
             starredDocuments={starredDocuments}
           />
