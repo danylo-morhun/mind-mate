@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMockDocumentById } from '@/lib/mock-documents';
-import {
-  getShareLinkById,
-  getShareInvitationById,
-  updateShareLink,
-  updateShareInvitation,
-  deleteShareLink,
-  deleteShareInvitation
-} from '@/lib/mock-share-data';
+import { getCurrentUserId, transformDocument } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 
 // GET - Отримати конкретне поширене посилання або запрошення
 export async function GET(
@@ -16,42 +9,37 @@ export async function GET(
 ) {
   try {
     const { id, shareId } = await params;
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
     
-    if (!document) {
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
 
-    const link = getShareLinkById(shareId);
-    const invitation = getShareInvitationById(shareId);
-    
-    // Перевіряємо, що посилання/запрошення належить документу
-    if (link && link.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Share not found for this document' },
-        { status: 404 }
-      );
-    }
-    
-    if (invitation && invitation.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Share not found for this document' },
-        { status: 404 }
-      );
-    }
-
-    if (!link && !invitation) {
-      return NextResponse.json(
-        { error: 'Share not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(link || invitation);
+    // For now, return 404 (share functionality can be implemented later with a share_links table)
+    return NextResponse.json(
+      { error: 'Share not found' },
+      { status: 404 }
+    );
   } catch (error) {
     console.error('Error fetching share:', error);
     return NextResponse.json(
@@ -69,64 +57,37 @@ export async function PUT(
   try {
     const { id, shareId } = await params;
     const body = await request.json();
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
     
-    if (!document) {
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
 
-    const link = getShareLinkById(shareId);
-    const invitation = getShareInvitationById(shareId);
-
-    // Перевіряємо, що посилання/запрошення належить документу
-    if (link && link.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Share not found for this document' },
-        { status: 404 }
-      );
-    }
-    
-    if (invitation && invitation.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Share not found for this document' },
-        { status: 404 }
-      );
-    }
-
-    if (link) {
-      // Оновлюємо посилання
-      const updates: Partial<typeof link> = {
-        ...body,
-        lastAccessed: body.isActive !== undefined && !body.isActive ? link.lastAccessed : new Date()
-      };
-      const updatedLink = updateShareLink(shareId, updates);
-      if (!updatedLink) {
-        return NextResponse.json(
-          { error: 'Failed to update share link' },
-          { status: 500 }
-        );
-      }
-      return NextResponse.json(updatedLink);
-    } else if (invitation) {
-      // Оновлюємо запрошення
-      const updatedInvitation = updateShareInvitation(shareId, body);
-      if (!updatedInvitation) {
-        return NextResponse.json(
-          { error: 'Failed to update share invitation' },
-          { status: 500 }
-        );
-      }
-      return NextResponse.json(updatedInvitation);
-    } else {
-      return NextResponse.json(
-        { error: 'Share not found' },
-        { status: 404 }
-      );
-    }
+    // For now, return 404 (share functionality can be implemented later)
+    return NextResponse.json(
+      { error: 'Share not found' },
+      { status: 404 }
+    );
   } catch (error) {
     console.error('Error updating share:', error);
     return NextResponse.json(
@@ -143,66 +104,37 @@ export async function DELETE(
 ) {
   try {
     const { id, shareId } = await params;
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
     
-    if (!document) {
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
 
-    const link = getShareLinkById(shareId);
-    const invitation = getShareInvitationById(shareId);
-
-    // Перевіряємо, що посилання/запрошення належить документу
-    if (link && link.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Share not found for this document' },
-        { status: 404 }
-      );
-    }
-    
-    if (invitation && invitation.documentId !== id) {
-      return NextResponse.json(
-        { error: 'Share not found for this document' },
-        { status: 404 }
-      );
-    }
-
-    if (link) {
-      const success = deleteShareLink(shareId);
-      if (!success) {
-        return NextResponse.json(
-          { error: 'Failed to delete share link' },
-          { status: 500 }
-        );
-      }
-      return NextResponse.json({
-        success: true,
-        message: 'Share link deleted successfully',
-        deletedShare: link
-      });
-    } else if (invitation) {
-      const success = deleteShareInvitation(shareId);
-      if (!success) {
-        return NextResponse.json(
-          { error: 'Failed to delete share invitation' },
-          { status: 500 }
-        );
-      }
-      return NextResponse.json({
-        success: true,
-        message: 'Share invitation deleted successfully',
-        deletedShare: invitation
-      });
-    } else {
-      return NextResponse.json(
-        { error: 'Share not found' },
-        { status: 404 }
-      );
-    }
+    // For now, return 404 (share functionality can be implemented later)
+    return NextResponse.json(
+      { error: 'Share not found' },
+      { status: 404 }
+    );
   } catch (error) {
     console.error('Error deleting share:', error);
     return NextResponse.json(

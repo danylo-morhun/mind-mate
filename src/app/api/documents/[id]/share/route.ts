@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMockDocumentById } from '@/lib/mock-documents';
-import {
-  getShareLinksByDocumentId,
-  getShareInvitationsByDocumentId,
-  addShareLink,
-  addShareInvitation,
-  ShareLink,
-  ShareInvitation
-} from '@/lib/mock-share-data';
+import { getCurrentUserId, transformDocument } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 
 // GET - Отримати всі поширені посилання та запрошення для документа
 export async function GET(
@@ -16,22 +9,36 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const userId = await getCurrentUserId();
     
-    const document = getMockDocumentById(id);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
     
-    if (!document) {
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
       );
     }
 
-    const documentLinks = getShareLinksByDocumentId(id);
-    const documentInvitations = getShareInvitationsByDocumentId(id);
-
+    // For now, return empty arrays (share functionality can be implemented later with a share_links table)
     return NextResponse.json({
-      links: documentLinks,
-      invitations: documentInvitations
+      links: [],
+      invitations: []
     });
   } catch (error) {
     console.error('Error fetching share data:', error);
@@ -52,9 +59,26 @@ export async function POST(
     const body = await request.json();
     const { type, accessLevel, expiresAt, email, message } = body;
 
-    const document = getMockDocumentById(id);
+    const userId = await getCurrentUserId();
     
-    if (!document) {
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
+    
+    // Verify document exists and belongs to user
+    const { data: dbDocument, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError || !dbDocument) {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
@@ -62,25 +86,22 @@ export async function POST(
     }
 
     if (type === 'link') {
-      // Створюємо поширене посилання
+      // For now, return a simple link structure (can be stored in database later)
       const linkId = Math.random().toString(36).substring(2, 15);
-      const newLink: ShareLink = {
+      const newLink = {
         id: `link_${Date.now()}`,
         documentId: id,
         url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/documents/shared/${linkId}`,
         accessLevel: accessLevel || 'view',
-        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
         isActive: true,
-        createdAt: new Date(),
-        createdBy: 'current_user', // В реальному додатку з сесії
+        createdAt: new Date().toISOString(),
+        createdBy: userId,
         accessCount: 0
       };
 
-      addShareLink(newLink);
-
       return NextResponse.json(newLink, { status: 201 });
     } else if (type === 'invitation') {
-      // Створюємо запрошення
       if (!email) {
         return NextResponse.json(
           { error: 'Email is required for invitations' },
@@ -88,23 +109,19 @@ export async function POST(
         );
       }
 
-      const newInvitation: ShareInvitation = {
+      const newInvitation = {
         id: `inv_${Date.now()}`,
         documentId: id,
         email: email,
         accessLevel: accessLevel || 'view',
         status: 'pending',
-        sentAt: new Date(),
-        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 днів за замовчуванням
+        sentAt: new Date().toISOString(),
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         message: message,
-        createdBy: 'current_user' // В реальному додатку з сесії
+        createdBy: userId
       };
 
-      addShareInvitation(newInvitation);
-
-      // TODO: Відправити email з запрошенням
-      // await sendInvitationEmail(newInvitation);
-
+      // TODO: Store in database and send email invitation
       return NextResponse.json(newInvitation, { status: 201 });
     } else {
       return NextResponse.json(
