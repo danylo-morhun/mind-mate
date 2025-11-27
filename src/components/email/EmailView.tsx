@@ -229,8 +229,8 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
         
       } else {
         console.error('Помилка генерації AI відповіді');
-        const mockReply = `Дякую за ваше повідомлення про "${fullEmail.subject}".\n\nЯ обов'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.\n\nЗ повагою,\nMind Mate AI`;
-        setReplyText(mockReply);
+        setReplyText('');
+        setSendStatus({ type: 'error', message: 'Не вдалося згенерувати відповідь. Спробуйте ще раз.' });
         
         const generationTime = (Date.now() - startTime) / 1000;
         
@@ -260,8 +260,8 @@ export default function EmailView({ email, onEmailUpdate, labels, onLabelUpdate 
       }
     } catch (error) {
       console.error('Помилка генерації відповіді:', error);
-      const mockReply = `Дякую за ваше повідомлення про "${fullEmail.subject}".\n\nЯ обов'язково розгляну всі зазначені питання та надам детальну відповідь найближчим часом.\n\nЗ повагою,\nMind Mate AI`;
-      setReplyText(mockReply);
+      setReplyText('');
+      setSendStatus({ type: 'error', message: 'Помилка генерації відповіді. Спробуйте ще раз.' });
       
       const generationTime = (Date.now() - startTime) / 1000;
       
