@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
-
-const analyticsFilePath = path.join(process.cwd(), 'src/lib/data/ai-analytics.json');
+import { getCurrentUserId } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
-    // Отримуємо сесію користувача
-    const session = await getServerSession(authOptions);
-    if (!session?.accessToken) {
+    const userId = await getCurrentUserId();
+    
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -29,33 +25,10 @@ export async function POST(request: NextRequest) {
       replyLength
     } = body;
 
-    // Читаємо поточну статистику
-    let analyticsData;
-    try {
-      const fileContent = await fs.readFile(analyticsFilePath, 'utf-8');
-      analyticsData = JSON.parse(fileContent);
-    } catch {
-      // Якщо файл не існує, створюємо базову структуру
-      analyticsData = {
-        replies: [],
-        templates: [],
-        stats: {
-          totalRepliesGenerated: 0,
-          repliesByType: {},
-          repliesByTone: {},
-          averageGenerationTime: 0,
-          templatesUsed: 0,
-          aiOnlyGeneration: 0,
-          successRate: 100,
-          lastUpdated: null
-        }
-      };
-    }
+    const supabase = createServerClient();
 
-    // Додаємо нову відповідь
-    const newReply = {
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
+    // Store analytics data in Supabase
+    const analyticsData = {
       emailId,
       emailSubject,
       replyType,
@@ -67,66 +40,74 @@ export async function POST(request: NextRequest) {
       success,
       modelUsed,
       replyLength,
-      userId: session.user?.email || 'unknown'
     };
 
-    analyticsData.replies.push(newReply);
+    const { error } = await supabase
+      .from('analytics')
+      .insert({
+        user_id: userId,
+        type: 'ai_reply',
+        data: analyticsData,
+      });
 
-    // Оновлюємо статистику
-    analyticsData.stats.totalRepliesGenerated = analyticsData.replies.length;
-    analyticsData.stats.lastUpdated = new Date().toISOString();
+    if (error) {
+      console.error('Error saving AI reply analytics to Supabase:', error);
+      return NextResponse.json(
+        { error: 'Failed to save AI reply statistics' },
+        { status: 500 }
+      );
+    }
 
-    // Розраховуємо статистику по типах
-    analyticsData.stats.repliesByType = {};
-    analyticsData.stats.repliesByTone = {};
-    analyticsData.stats.templatesUsed = 0;
-    analyticsData.stats.aiOnlyGeneration = 0;
+    // Calculate and return stats
+    const { data: allReplies } = await supabase
+      .from('analytics')
+      .select('data')
+      .eq('user_id', userId)
+      .eq('type', 'ai_reply');
+
+    const replies = (allReplies || []).map(r => r.data as any);
+    
+    const stats = {
+      totalRepliesGenerated: replies.length,
+      repliesByType: {} as Record<string, number>,
+      repliesByTone: {} as Record<string, number>,
+      templatesUsed: 0,
+      aiOnlyGeneration: 0,
+      averageGenerationTime: 0,
+      successRate: 100,
+      lastUpdated: new Date().toISOString()
+    };
 
     let totalGenerationTime = 0;
     let successfulReplies = 0;
 
-    analyticsData.replies.forEach((reply: any) => {
-      // Типи відповідей
-      analyticsData.stats.repliesByType[reply.replyType] = 
-        (analyticsData.stats.repliesByType[reply.replyType] || 0) + 1;
-      
-      // Тони відповідей
-      analyticsData.stats.repliesByTone[reply.tone] = 
-        (analyticsData.stats.repliesByTone[reply.tone] || 0) + 1;
-      
-      // Шаблони
-      if (reply.templateId) {
-        analyticsData.stats.templatesUsed++;
-      } else {
-        analyticsData.stats.aiOnlyGeneration++;
+    replies.forEach((reply: any) => {
+      if (reply.replyType) {
+        stats.repliesByType[reply.replyType] = (stats.repliesByType[reply.replyType] || 0) + 1;
       }
-      
-      // Час генерації
+      if (reply.tone) {
+        stats.repliesByTone[reply.tone] = (stats.repliesByTone[reply.tone] || 0) + 1;
+      }
+      if (reply.templateId) {
+        stats.templatesUsed++;
+      } else {
+        stats.aiOnlyGeneration++;
+      }
       if (reply.generationTime) {
         totalGenerationTime += reply.generationTime;
       }
-      
-      // Успішність
       if (reply.success) {
         successfulReplies++;
       }
     });
 
-    // Середній час генерації
-    analyticsData.stats.averageGenerationTime = 
-      analyticsData.replies.length > 0 ? totalGenerationTime / analyticsData.replies.length : 0;
-
-    // Відсоток успішності
-    analyticsData.stats.successRate = 
-      analyticsData.replies.length > 0 ? (successfulReplies / analyticsData.replies.length) * 100 : 100;
-
-    // Зберігаємо оновлену статистику
-    await fs.writeFile(analyticsFilePath, JSON.stringify(analyticsData, null, 2));
+    stats.averageGenerationTime = replies.length > 0 ? totalGenerationTime / replies.length : 0;
+    stats.successRate = replies.length > 0 ? (successfulReplies / replies.length) * 100 : 100;
 
     return NextResponse.json({
       success: true,
       message: 'AI reply statistics saved',
-      stats: analyticsData.stats
+      stats
     });
 
   } catch (error) {
@@ -140,19 +121,80 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    // Отримуємо сесію користувача
-    const session = await getServerSession(authOptions);
-    if (!session?.accessToken) {
+    const userId = await getCurrentUserId();
+    
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Читаємо статистику
-    const fileContent = await fs.readFile(analyticsFilePath, 'utf-8');
-    const analyticsData = JSON.parse(fileContent);
+    const supabase = createServerClient();
+
+    // Fetch all AI reply analytics for the user
+    const { data: analytics, error } = await supabase
+      .from('analytics')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('type', 'ai_reply')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching AI analytics from Supabase:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch AI analytics' },
+        { status: 500 }
+      );
+    }
+
+    const replies = (analytics || []).map(a => ({
+      id: a.id,
+      timestamp: a.created_at,
+      ...(a.data as any),
+    }));
+
+    // Calculate stats
+    const stats = {
+      totalRepliesGenerated: replies.length,
+      repliesByType: {} as Record<string, number>,
+      repliesByTone: {} as Record<string, number>,
+      templatesUsed: 0,
+      aiOnlyGeneration: 0,
+      averageGenerationTime: 0,
+      successRate: 100,
+      lastUpdated: replies.length > 0 ? replies[0].timestamp : null
+    };
+
+    let totalGenerationTime = 0;
+    let successfulReplies = 0;
+
+    replies.forEach((reply: any) => {
+      if (reply.replyType) {
+        stats.repliesByType[reply.replyType] = (stats.repliesByType[reply.replyType] || 0) + 1;
+      }
+      if (reply.tone) {
+        stats.repliesByTone[reply.tone] = (stats.repliesByTone[reply.tone] || 0) + 1;
+      }
+      if (reply.templateId) {
+        stats.templatesUsed++;
+      } else {
+        stats.aiOnlyGeneration++;
+      }
+      if (reply.generationTime) {
+        totalGenerationTime += reply.generationTime;
+      }
+      if (reply.success) {
+        successfulReplies++;
+      }
+    });
+
+    stats.averageGenerationTime = replies.length > 0 ? totalGenerationTime / replies.length : 0;
+    stats.successRate = replies.length > 0 ? (successfulReplies / replies.length) * 100 : 100;
 
     return NextResponse.json({
       success: true,
-      data: analyticsData
+      data: {
+        replies,
+        stats
+      }
     });
 
   } catch (error) {

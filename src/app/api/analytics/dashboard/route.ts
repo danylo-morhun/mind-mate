@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
+import { getCurrentUserId } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 import { validateDashboardData } from '@/lib/utils/dashboard-validation';
 
 export async function GET(request: NextRequest) {
@@ -273,90 +273,9 @@ async function getGmailStatistics(accessToken: string, period: string) {
 // Функція для збору AI статистики
 async function getAIStatistics(period: string) {
   try {
-    // Читаємо реальну AI статистику з файлу
-    const analyticsFilePath = path.join(process.cwd(), 'src/lib/data/ai-analytics.json');
+    const userId = await getCurrentUserId();
     
-    try {
-      const fileContent = await fs.readFile(analyticsFilePath, 'utf-8');
-      const analyticsData = JSON.parse(fileContent);
-      
-      // Фільтруємо по періоду
-      const now = new Date();
-      const periodStart = new Date();
-      
-      switch (period) {
-        case 'week':
-          periodStart.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          periodStart.setMonth(now.getMonth() - 1);
-          break;
-        case 'year':
-          periodStart.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          periodStart.setDate(now.getDate() - 7);
-      }
-      
-      // Фільтруємо відповіді за період
-      const filteredReplies = analyticsData.replies.filter((reply: any) => {
-        const replyDate = new Date(reply.timestamp);
-        return replyDate >= periodStart;
-      });
-      
-      // Розраховуємо статистику для періоду
-      const periodStats = {
-        totalRepliesGenerated: filteredReplies.length,
-        repliesByType: {},
-        repliesByTone: {},
-        averageGenerationTime: 0,
-        templatesUsed: 0,
-        aiOnlyGeneration: 0,
-        successRate: 100
-      };
-      
-      let totalGenerationTime = 0;
-      let successfulReplies = 0;
-      
-      filteredReplies.forEach((reply: any) => {
-        // Типи відповідей
-        periodStats.repliesByType[reply.replyType] = 
-          (periodStats.repliesByType[reply.replyType] || 0) + 1;
-        
-        // Тони відповідей
-        periodStats.repliesByTone[reply.tone] = 
-          (periodStats.repliesByTone[reply.tone] || 0) + 1;
-        
-        // Шаблони
-        if (reply.templateId) {
-          periodStats.templatesUsed++;
-        } else {
-          periodStats.aiOnlyGeneration++;
-        }
-        
-        // Час генерації
-        if (reply.generationTime) {
-          totalGenerationTime += reply.generationTime;
-        }
-        
-        // Успішність
-        if (reply.success) {
-          successfulReplies++;
-        }
-      });
-      
-      // Середній час генерації
-      periodStats.averageGenerationTime = 
-        filteredReplies.length > 0 ? totalGenerationTime / filteredReplies.length : 0;
-      
-      // Відсоток успішності
-      periodStats.successRate = 
-        filteredReplies.length > 0 ? (successfulReplies / filteredReplies.length) * 100 : 100;
-      
-      return periodStats;
-      
-    } catch (error) {
-      // Якщо файл не існує, повертаємо пусту статистику
+    if (!userId) {
       return {
         totalRepliesGenerated: 0,
         repliesByType: {},
@@ -367,6 +286,105 @@ async function getAIStatistics(period: string) {
         successRate: 100
       };
     }
+
+    const supabase = createServerClient();
+    
+    // Визначаємо період для фільтрації
+    const now = new Date();
+    const periodStart = new Date();
+    
+    switch (period) {
+      case 'week':
+        periodStart.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        periodStart.setMonth(now.getMonth() - 1);
+        break;
+      case 'year':
+        periodStart.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        periodStart.setDate(now.getDate() - 7);
+    }
+
+    // Отримуємо AI reply analytics з Supabase
+    const { data: analytics, error } = await supabase
+      .from('analytics')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('type', 'ai_reply')
+      .gte('created_at', periodStart.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching AI statistics from Supabase:', error);
+      return {
+        totalRepliesGenerated: 0,
+        repliesByType: {},
+        repliesByTone: {},
+        averageGenerationTime: 0,
+        templatesUsed: 0,
+        aiOnlyGeneration: 0,
+        successRate: 100
+      };
+    }
+
+    const replies = (analytics || []).map(a => a.data as any);
+    
+    // Розраховуємо статистику для періоду
+    const periodStats = {
+      totalRepliesGenerated: replies.length,
+      repliesByType: {} as Record<string, number>,
+      repliesByTone: {} as Record<string, number>,
+      averageGenerationTime: 0,
+      templatesUsed: 0,
+      aiOnlyGeneration: 0,
+      successRate: 100
+    };
+    
+    let totalGenerationTime = 0;
+    let successfulReplies = 0;
+    
+    replies.forEach((reply: any) => {
+      // Типи відповідей
+      if (reply.replyType) {
+        periodStats.repliesByType[reply.replyType] = 
+          (periodStats.repliesByType[reply.replyType] || 0) + 1;
+      }
+      
+      // Тони відповідей
+      if (reply.tone) {
+        periodStats.repliesByTone[reply.tone] = 
+          (periodStats.repliesByTone[reply.tone] || 0) + 1;
+      }
+      
+      // Шаблони
+      if (reply.templateId) {
+        periodStats.templatesUsed++;
+      } else {
+        periodStats.aiOnlyGeneration++;
+      }
+      
+      // Час генерації
+      if (reply.generationTime) {
+        totalGenerationTime += reply.generationTime;
+      }
+      
+      // Успішність
+      if (reply.success) {
+        successfulReplies++;
+      }
+    });
+    
+    // Середній час генерації
+    periodStats.averageGenerationTime = 
+      replies.length > 0 ? totalGenerationTime / replies.length : 0;
+    
+    // Відсоток успішності
+    periodStats.successRate = 
+      replies.length > 0 ? (successfulReplies / replies.length) * 100 : 100;
+    
+    return periodStats;
     
   } catch (error) {
     console.error('AI statistics error:', error);
