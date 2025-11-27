@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { X, FileText, BookOpen, FileSpreadsheet, Presentation, File, Users, Lock, Globe, Eye, EyeOff } from 'lucide-react';
+import { X, FileText, BookOpen, FileSpreadsheet, Presentation, File, Users, Lock, Globe, Eye, EyeOff, ExternalLink } from 'lucide-react';
 
 interface CreateDocumentModalProps {
   isOpen: boolean;
@@ -77,6 +77,8 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [newCollaborator, setNewCollaborator] = useState('');
+  const [createInGoogleDocs, setCreateInGoogleDocs] = useState(false);
+  const [isCreatingGoogleDoc, setIsCreatingGoogleDoc] = useState(false);
 
   const handleInputChange = useCallback((field: keyof DocumentFormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -147,9 +149,60 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
     }
   }, [formData.title, formData.template, formData.description, formData.category, formData.type, formData.additionalContext]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!formData.title.trim()) return;
 
+    // Якщо потрібно створити в Google Docs
+    if (createInGoogleDocs) {
+      setIsCreatingGoogleDoc(true);
+      try {
+        const response = await fetch('/api/documents/create-google-doc', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: formData.title,
+            content: formData.content,
+            category: formData.category,
+            type: formData.type || 'doc',
+            tags: formData.tags,
+            metadata: {
+              subject: formData.description || 'Загальний',
+              semester: '1',
+              academicYear: '2024-2025',
+              department: 'Загальний',
+              course: '1',
+              language: 'uk',
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create Google Doc');
+        }
+
+        const result = await response.json();
+        
+        if (result.url) {
+          // Відкриваємо Google Docs в новій вкладці
+          window.open(result.url, '_blank');
+          alert('Документ успішно створено в Google Docs!');
+          onClose();
+        } else {
+          throw new Error('No URL returned from Google Docs creation');
+        }
+      } catch (error) {
+        console.error('Error creating Google Doc:', error);
+        alert(`Помилка при створенні Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      } finally {
+        setIsCreatingGoogleDoc(false);
+      }
+      return;
+    }
+
+    // Звичайне створення документа
     const newDocument = {
       id: `doc_${Date.now()}`,
       ...formData,
@@ -182,8 +235,9 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
       accessLevel: 'view'
     });
     setIsAIGenerated(false); // Скидаємо прапорець AI
+    setCreateInGoogleDocs(false);
     setCurrentStep(1);
-  }, [formData, onCreateDocument, onClose]);
+  }, [formData, onCreateDocument, onClose, createInGoogleDocs]);
 
   const nextStep = useCallback(() => {
     if (currentStep < 3) setCurrentStep(prev => prev + 1);
@@ -571,10 +625,26 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={!formData.title.trim()}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={!formData.title.trim() || isCreatingGoogleDoc}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
-                Створити документ
+                {isCreatingGoogleDoc ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Створення...</span>
+                  </>
+                ) : (
+                  <>
+                    {createInGoogleDocs ? (
+                      <>
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Створити в Google Docs</span>
+                      </>
+                    ) : (
+                      <span>Створити документ</span>
+                    )}
+                  </>
+                )}
               </button>
             )}
           </div>
