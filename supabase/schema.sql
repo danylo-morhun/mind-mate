@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS documents (
   ai_generated BOOLEAN DEFAULT false,
   template_id UUID,
   user_id TEXT NOT NULL,
+  google_doc_id TEXT, -- ID документа в Google Docs для синхронізації
+  google_doc_url TEXT, -- URL документа в Google Docs
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -64,6 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
 CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
 CREATE INDEX IF NOT EXISTS idx_documents_created_date ON documents(created_date);
+CREATE INDEX IF NOT EXISTS idx_documents_google_doc_id ON documents(google_doc_id);
 CREATE INDEX IF NOT EXISTS idx_email_templates_user_id ON email_templates(user_id);
 CREATE INDEX IF NOT EXISTS idx_email_templates_category ON email_templates(category);
 CREATE INDEX IF NOT EXISTS idx_analytics_user_id ON analytics(user_id);
