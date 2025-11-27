@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { X, FileText, Link, Copy, Users, Lock, Globe, Eye, MessageSquare, Edit, Mail, Calendar, User, Check, AlertCircle } from 'lucide-react';
 
 interface Document {
@@ -82,50 +82,35 @@ export default function ShareDocumentModal({ isOpen, onClose, document }: ShareD
   const [isSendingInvitation, setIsSendingInvitation] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
-  // Mock data для поширених посилань та запрошень
-  const [shareLinks] = useState<ShareLink[]>([
-    {
-      id: 'link1',
-      url: 'https://mind-mate.app/documents/shared/abc123',
-      accessLevel: 'view',
-      isActive: true,
-      createdAt: new Date(Date.now() - 86400000), // 1 день тому
-      createdBy: 'current_user',
-      accessCount: 5,
-      lastAccessed: new Date(Date.now() - 3600000) // 1 година тому
-    },
-    {
-      id: 'link2',
-      url: 'https://mind-mate.app/documents/shared/def456',
-      accessLevel: 'comment',
-      expiresAt: new Date(Date.now() + 7 * 86400000), // 7 днів
-      isActive: true,
-      createdAt: new Date(Date.now() - 172800000), // 2 дні тому
-      createdBy: 'current_user',
-      accessCount: 12,
-      lastAccessed: new Date(Date.now() - 7200000) // 2 години тому
-    }
-  ]);
+  // Load share links and invitations from API
+  const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
+  const [shareInvitations, setShareInvitations] = useState<ShareInvitation[]>([]);
+  const [isLoadingShares, setIsLoadingShares] = useState(false);
 
-  const [shareInvitations] = useState<ShareInvitation[]>([
-    {
-      id: 'inv1',
-      email: 'student@university.edu',
-      accessLevel: 'view',
-      status: 'pending',
-      sentAt: new Date(Date.now() - 86400000), // 1 день тому
-      expiresAt: new Date(Date.now() + 7 * 86400000) // 7 днів
-    },
-    {
-      id: 'inv2',
-      email: 'professor@university.edu',
-      accessLevel: 'edit',
-      status: 'accepted',
-      sentAt: new Date(Date.now() - 172800000), // 2 дні тому
-      expiresAt: new Date(Date.now() + 30 * 86400000), // 30 днів
-      message: 'Будь ласка, перегляньте та за необхідності відредагуйте документ'
+  useEffect(() => {
+    if (isOpen && document?.id) {
+      loadShareData();
     }
-  ]);
+  }, [isOpen, document?.id]);
+
+  const loadShareData = async () => {
+    if (!document?.id) return;
+    
+    setIsLoadingShares(true);
+    try {
+      const response = await fetch(`/api/documents/${document.id}/share`);
+      if (response.ok) {
+        const data = await response.json();
+        setShareLinks(data.links || []);
+        setShareInvitations(data.invitations || []);
+      }
+    } catch (error) {
+      console.error('Error loading share data:', error);
+    } finally {
+      setIsLoadingShares(false);
+    }
+  };
+
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('uk-UA', { 
