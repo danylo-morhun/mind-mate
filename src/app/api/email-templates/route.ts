@@ -1,61 +1,120 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUserId } from '@/lib/supabase/utils';
+import { createServerClient } from '@/lib/supabase/server';
 
-// Мокові шаблони листів (в реальному додатку будуть з бази даних)
-const emailTemplates = [
-  {
-    id: '1',
-    name: 'Загальна відповідь',
-    subject: 'Re: {subject}',
-    body: 'Доброго дня!\n\nДякую за ваш лист. Я розгляну ваше питання та відповім найближчим часом.\n\nЗ повагою,\n[Ваше ім\'я]',
-    category: 'general',
-    variables: ['subject'],
-    isActive: true,
-  },
-  {
-    id: '2',
-    name: 'Навчальні матеріали',
-    subject: 'Re: {subject}',
-    body: 'Доброго дня!\n\nДякую за запит щодо навчальних матеріалів. Я підготую необхідну інформацію та надішлю вам протягом тижня.\n\nЯкщо у вас є додаткові питання, будь ласка, звертайтесь.\n\nЗ повагою,\n[Ваше ім\'я]',
-    category: 'education',
-    variables: ['subject'],
-    isActive: true,
-  },
-  {
-    id: '3',
-    name: 'Зустріч/Консультація',
-    subject: 'Re: {subject}',
-    body: 'Доброго дня!\n\nДякую за запит на зустріч. Я готовий зустрітися з вами {date} о {time}.\n\nМісце зустрічі: {location}\n\nЯкщо цей час вам не підходить, будь ласка, запропонуйте альтернативні варіанти.\n\nЗ повагою,\n[Ваше ім\'я]',
-    category: 'meetings',
-    variables: ['subject', 'date', 'time', 'location'],
-    isActive: true,
-  },
-  {
-    id: '4',
-    name: 'Документи/Форми',
-    subject: 'Re: {subject}',
-    body: 'Доброго дня!\n\nДякую за запит щодо документів. Необхідні форми та інструкції вкладені до цього листа.\n\nЯкщо у вас виникнуть питання при заповненні, будь ласка, звертайтесь.\n\nЗ повагою,\n[Ваше ім\'я]',
-    category: 'documents',
-    variables: ['subject'],
-    isActive: true,
-  },
-  {
-    id: '5',
-    name: 'Термінова відповідь',
-    subject: 'URGENT: {subject}',
-    body: 'Доброго дня!\n\nВаш запит отримано та розглядається як терміновий. Я надам детальну відповідь протягом 24 годин.\n\nЯкщо потрібна негайна допомога, будь ласка, зателефонуйте: {phone}\n\nЗ повагою,\n[Ваше ім\'я]',
-    category: 'urgent',
-    variables: ['subject', 'phone'],
-    isActive: true,
-  },
-];
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    return NextResponse.json(emailTemplates);
+    const userId = await getCurrentUserId();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category');
+    const isActive = searchParams.get('isActive');
+
+    let query = supabase
+      .from('email_templates')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    if (isActive !== null) {
+      query = query.eq('is_active', isActive === 'true');
+    }
+
+    query = query.order('created_at', { ascending: false });
+
+    const { data: templates, error } = await query;
+
+    if (error) {
+      console.error('Error fetching email templates from Supabase:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch email templates' },
+        { status: 500 }
+      );
+    }
+
+    // Transform to match expected format
+    const transformedTemplates = (templates || []).map(template => ({
+      id: template.id,
+      name: template.name,
+      subject: template.subject,
+      body: template.body,
+      category: template.category,
+      variables: template.variables || [],
+      isActive: template.is_active,
+    }));
+
+    return NextResponse.json(transformedTemplates);
   } catch (error) {
     console.error('Error fetching email templates:', error);
     return NextResponse.json(
       { error: 'Failed to fetch email templates' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const userId = await getCurrentUserId();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const supabase = createServerClient();
+
+    const templateData = {
+      name: body.name,
+      subject: body.subject,
+      body: body.body,
+      category: body.category,
+      variables: body.variables || [],
+      is_active: body.isActive !== undefined ? body.isActive : true,
+      user_id: userId,
+    };
+
+    const { data: newTemplate, error } = await supabase
+      .from('email_templates')
+      .insert(templateData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating email template in Supabase:', error);
+      return NextResponse.json(
+        { error: 'Failed to create email template' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      id: newTemplate.id,
+      name: newTemplate.name,
+      subject: newTemplate.subject,
+      body: newTemplate.body,
+      category: newTemplate.category,
+      variables: newTemplate.variables || [],
+      isActive: newTemplate.is_active,
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating email template:', error);
+    return NextResponse.json(
+      { error: 'Failed to create email template' },
       { status: 500 }
     );
   }
