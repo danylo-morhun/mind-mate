@@ -6,8 +6,8 @@ import StatsCard from '@/components/dashboard/StatsCard';
 import ActivityChart from '@/components/dashboard/ActivityChart';
 import CategoryChart from '@/components/dashboard/CategoryChart';
 import DocumentsStatsCard from '@/components/dashboard/DocumentsStatsCard';
-import ProductivityCard from '@/components/dashboard/ProductivityCard';
 import CollaborationCard from '@/components/dashboard/CollaborationCard';
+import { StatsCardSkeleton, ChartSkeleton, CardSkeleton } from '@/components/dashboard/SkeletonLoader';
 
 export default function DashboardPage() {
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -26,15 +26,36 @@ export default function DashboardPage() {
     
     try {
       const response = await fetch(`/api/analytics/dashboard?period=${period}`);
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch analytics data');
+        // Використовуємо повідомлення з сервера, якщо воно є
+        const errorMessage = data?.error || `HTTP ${response.status}: Failed to fetch analytics data`;
+        throw new Error(errorMessage);
       }
       
-      const data = await response.json();
+      if (!data.success || !data.data) {
+        throw new Error('Invalid response format from server');
+      }
+      
+      // Валідуємо наявність основних полів
+      if (!data.data.gmail || !data.data.ai || !data.data.documents) {
+        console.warn('Dashboard data missing some fields:', data.data);
+      }
+      
       setAnalyticsData(data.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'Unknown error occurred while fetching analytics data';
+      
+      setError(errorMessage);
       console.error('Analytics fetch error:', err);
+      
+      // Логуємо детальну інформацію для дебагу
+      if (err instanceof Error && err.stack) {
+        console.error('Error stack:', err.stack);
+      }
     } finally {
       setLoading(false);
     }
@@ -81,69 +102,97 @@ export default function DashboardPage() {
 
         {/* Статистичні картки */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Листи оброблено"
-            value={loading ? '...' : analyticsData?.gmail?.totalEmails || 0}
-            icon={Mail}
-            color="blue"
-            subtitle={`за ${period === 'week' ? 'тиждень' : period === 'month' ? 'місяць' : 'рік'}`}
-          />
-          
-          <StatsCard
-            title="AI відповіді згенеровано"
-            value={loading ? '...' : analyticsData?.ai?.totalRepliesGenerated || 0}
-            icon={Bot}
-            color="green"
-            subtitle={`успішність ${analyticsData?.ai?.successRate || 0}%`}
-          />
-          
-          <StatsCard
-            title="Непрочитані листи"
-            value={loading ? '...' : analyticsData?.gmail?.unreadEmails || 0}
-            icon={AlertTriangle}
-            color="orange"
-            subtitle="потребують уваги"
-          />
-          
-          <StatsCard
-            title="Важливі листи"
-            value={loading ? '...' : analyticsData?.gmail?.starredEmails || 0}
-            icon={Star}
-            color="purple"
-            subtitle="з зіркою"
-          />
+          {loading ? (
+            <>
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatsCard
+                title="Листи оброблено"
+                value={analyticsData?.gmail?.totalEmails || 0}
+                icon={Mail}
+                color="blue"
+                subtitle={`за ${period === 'week' ? 'тиждень' : period === 'month' ? 'місяць' : 'рік'}`}
+              />
+              
+              <StatsCard
+                title="AI відповіді згенеровано"
+                value={analyticsData?.ai?.totalRepliesGenerated || 0}
+                icon={Bot}
+                color="green"
+                subtitle={`успішність ${analyticsData?.ai?.successRate || 0}%`}
+              />
+              
+              <StatsCard
+                title="Непрочитані листи"
+                value={analyticsData?.gmail?.unreadEmails || 0}
+                icon={AlertTriangle}
+                color="orange"
+                subtitle="потребують уваги"
+              />
+              
+              <StatsCard
+                title="Важливі листи"
+                value={analyticsData?.gmail?.starredEmails || 0}
+                icon={Star}
+                color="purple"
+                subtitle="з зіркою"
+              />
+            </>
+          )}
         </div>
 
         {/* Графіки та діаграми */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <ActivityChart
-            data={analyticsData?.gmail?.activityByDay || []}
-            title="Активність по днях"
-            loading={loading}
-          />
+          {loading ? (
+            <>
+              <ChartSkeleton />
+              <ChartSkeleton />
+            </>
+          ) : (
+            <>
+              <ActivityChart
+                data={analyticsData?.gmail?.activityByDay || []}
+                title="Активність по днях"
+                loading={false}
+              />
 
-          <CategoryChart
-            data={analyticsData?.gmail?.categories || {}}
-            title="Розподіл по категоріях"
-            loading={loading}
-          />
+              <CategoryChart
+                data={analyticsData?.gmail?.categories || {}}
+                title="Розподіл по категоріях"
+                loading={false}
+              />
+            </>
+          )}
         </div>
 
         {/* Нові віджети для університетського контексту */}
-        {!loading && analyticsData && (
+        {loading ? (
+          <>
+            <div className="mt-8">
+              <CardSkeleton />
+            </div>
+            <div className="mt-8">
+              <CardSkeleton />
+            </div>
+          </>
+        ) : analyticsData ? (
           <>
             {/* Документи та AI статистика */}
             <div className="mt-8">
               <DocumentsStatsCard stats={analyticsData.documents || {}} />
             </div>
 
-            {/* Продуктивність та співпраця */}
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <ProductivityCard stats={analyticsData.productivity || {}} />
+            {/* Співпраця та командна робота - на всю ширину */}
+            <div className="mt-8">
               <CollaborationCard stats={analyticsData.collaboration || {}} />
             </div>
           </>
-        )}
+        ) : null}
 
         {/* Додаткова статистика AI */}
         {analyticsData?.ai && (
@@ -156,7 +205,7 @@ export default function DashboardPage() {
                   {Object.entries(analyticsData.ai.repliesByType).map(([type, count]) => (
                     <div key={type} className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 capitalize">{type.replace('_', ' ')}</span>
-                      <span className="font-medium text-gray-900">{count}</span>
+                      <span className="font-medium text-gray-900">{String(count)}</span>
                     </div>
                   ))}
                 </div>
@@ -168,7 +217,7 @@ export default function DashboardPage() {
                   {Object.entries(analyticsData.ai.repliesByTone).map(([tone, count]) => (
                     <div key={tone} className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 capitalize">{tone}</span>
-                      <span className="font-medium text-gray-900">{count}</span>
+                      <span className="font-medium text-gray-900">{String(count)}</span>
                     </div>
                   ))}
                 </div>
@@ -179,7 +228,7 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Середній час генерації</span>
-                    <span className="font-medium text-gray-900">{analyticsData.ai.averageGenerationTime}s</span>
+                    <span className="font-medium text-gray-900">{analyticsData.ai.averageGenerationTime.toFixed(2)}s</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Шаблони використано</span>
