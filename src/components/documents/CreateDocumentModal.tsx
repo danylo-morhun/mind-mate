@@ -74,6 +74,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAIGenerated, setIsAIGenerated] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [newCollaborator, setNewCollaborator] = useState('');
 
@@ -133,6 +134,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
       
       if (result.success && result.content) {
         setFormData(prev => ({ ...prev, content: result.content }));
+        setIsAIGenerated(true); // Позначаємо, що контент згенерований AI
         console.log('Content generated successfully:', result.metadata);
       } else {
         throw new Error('No content received from AI');
@@ -151,6 +153,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
     const newDocument = {
       id: `doc_${Date.now()}`,
       ...formData,
+      aiGenerated: isAIGenerated, // Додаємо прапорець AI
       createdDate: new Date(),
       lastModified: new Date(),
       status: 'draft',
@@ -178,6 +181,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
       visibility: 'private',
       accessLevel: 'view'
     });
+    setIsAIGenerated(false); // Скидаємо прапорець AI
     setCurrentStep(1);
   }, [formData, onCreateDocument, onClose]);
 
