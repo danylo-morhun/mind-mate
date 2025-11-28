@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { X, FileText, BookOpen, FileSpreadsheet, Presentation, File, Users, Lock, Globe, Eye, EyeOff, ExternalLink, Loader2 } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { X, FileText, BookOpen, FileSpreadsheet, File, Users, Lock, Globe, Eye, EyeOff, ExternalLink, Loader2 } from 'lucide-react';
 import { useAlert } from '@/contexts/AlertContext';
 
 interface CreateDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateDocument: (document: DocumentFormData) => void;
+  onDocumentCreated?: () => void; // Callback when document is created in Google
 }
 
 interface DocumentFormData {
@@ -28,7 +29,6 @@ const documentTypes = [
   { id: 'document', name: 'Документ', icon: FileText, color: 'text-blue-600' },
   { id: 'lecture', name: 'Лекція', icon: BookOpen, color: 'text-green-600' },
   { id: 'spreadsheet', name: 'Таблиця', icon: FileSpreadsheet, color: 'text-orange-600' },
-  { id: 'presentation', name: 'Презентація', icon: Presentation, color: 'text-purple-600' },
   { id: 'other', name: 'Інше', icon: File, color: 'text-gray-600' }
 ];
 
@@ -44,12 +44,16 @@ const documentCategories = [
 ];
 
 const documentTemplates = [
-  { id: 'blank', name: 'Порожній документ', description: 'Створити з нуля' },
-  { id: 'lecture', name: 'Шаблон лекції', description: 'Структура лекції з розділами' },
-  { id: 'methodology', name: 'Методичні вказівки', description: 'Стандартна структура методички' },
-  { id: 'lab', name: 'Лабораторна робота', description: 'Шаблон для лабораторних' },
-  { id: 'course', name: 'Курсова робота', description: 'Структура курсової роботи' },
-  { id: 'thesis', name: 'Дипломна робота', description: 'Шаблон дипломної роботи' }
+  { id: 'blank', name: 'Порожній документ', description: 'Створити з нуля', types: ['document', 'lecture', 'other', 'spreadsheet'] },
+  { id: 'lecture', name: 'Шаблон лекції', description: 'Структура лекції з розділами', types: ['document', 'lecture'] },
+  { id: 'methodology', name: 'Методичні вказівки', description: 'Стандартна структура методички', types: ['document', 'lecture'] },
+  { id: 'lab', name: 'Лабораторна робота', description: 'Шаблон для лабораторних', types: ['document', 'lecture'] },
+  { id: 'course', name: 'Курсова робота', description: 'Структура курсової роботи', types: ['document', 'lecture'] },
+  { id: 'thesis', name: 'Дипломна робота', description: 'Шаблон дипломної роботи', types: ['document', 'lecture'] },
+  { id: 'sheet-basic', name: 'Базова таблиця', description: 'Проста таблиця з заголовками', types: ['spreadsheet'] },
+  { id: 'sheet-grades', name: 'Таблиця оцінок', description: 'Таблиця для ведення оцінок студентів', types: ['spreadsheet'] },
+  { id: 'sheet-schedule', name: 'Розклад', description: 'Таблиця для розкладу занять', types: ['spreadsheet'] },
+  { id: 'sheet-data', name: 'Таблиця даних', description: 'Таблиця для аналізу даних', types: ['spreadsheet'] }
 ];
 
 const accessLevels = [
@@ -58,7 +62,7 @@ const accessLevels = [
   { id: 'edit', name: 'Редагування', description: 'Повний доступ до редагування', icon: EyeOff }
 ];
 
-export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument }: CreateDocumentModalProps) {
+export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument, onDocumentCreated }: CreateDocumentModalProps) {
   const { showSuccess, showError } = useAlert();
   const [formData, setFormData] = useState<DocumentFormData>({
     title: '',
@@ -81,6 +85,15 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
   const [newCollaborator, setNewCollaborator] = useState('');
   const [createInGoogleDocs, setCreateInGoogleDocs] = useState(false);
   const [isCreatingGoogleDoc, setIsCreatingGoogleDoc] = useState(false);
+  const [createdGoogleDoc, setCreatedGoogleDoc] = useState<{
+    documentId: string;
+    googleDocId: string;
+    googleDocUrl: string;
+    title: string;
+    type: string;
+    needsSave?: boolean; // Flag to indicate if document needs to be saved to database
+  } | null>(null);
+  const [isSavingToDatabase, setIsSavingToDatabase] = useState(false);
 
   const handleInputChange = useCallback((field: keyof DocumentFormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -154,11 +167,19 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
   const handleSubmit = useCallback(async () => {
     if (!formData.title.trim()) return;
 
-    // Якщо потрібно створити в Google Docs
+    // Якщо потрібно створити в Google (Docs/Sheets/Slides)
     if (createInGoogleDocs) {
       setIsCreatingGoogleDoc(true);
       try {
-        const response = await fetch('/api/documents/create-google-doc', {
+        // Визначаємо тип документа та відповідний API endpoint
+        const docType = formData.type === 'spreadsheet' ? 'sheet' : 'doc';
+        
+        let apiEndpoint = '/api/documents/create-google-doc';
+        if (docType === 'sheet') {
+          apiEndpoint = '/api/documents/create-google-sheet';
+        }
+
+        const response = await fetch(apiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -167,7 +188,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
             title: formData.title,
             content: formData.content,
             category: formData.category,
-            type: formData.type || 'doc',
+            type: docType,
             tags: formData.tags,
             metadata: {
               subject: formData.description || 'Загальний',
@@ -182,22 +203,57 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create Google Doc');
+          const typeName = docType === 'sheet' ? 'Google Sheets' : 'Google Docs';
+          throw new Error(errorData.error || `Failed to create ${typeName}`);
         }
 
         const result = await response.json();
         
-        if (result.url) {
-          // Відкриваємо Google Docs в новій вкладці
+        if (result.url && result.googleDocId) {
+          // Перевіряємо чи документ збережено в базі даних
+          if (!result.success || !result.documentId) {
+            // Документ створено в Google, але не збережено в базі
+            const typeName = docType === 'sheet' ? 'Google Sheets' : 'Google Docs';
+            showError(`Документ створено в ${typeName}, але не вдалося зберегти в базі даних. ${result.details || ''}`);
+            
+            // Все одно показуємо успіх і дозволяємо відкрити документ
+            setCreatedGoogleDoc({
+              documentId: '',
+              googleDocId: result.googleDocId,
+              googleDocUrl: result.url,
+              title: formData.title,
+              type: docType,
+              needsSave: true
+            });
+            
+            window.open(result.url, '_blank');
+            return;
+          }
+          
+          // Зберігаємо інформацію про створений документ
+          setCreatedGoogleDoc({
+            documentId: result.documentId || '',
+            googleDocId: result.googleDocId,
+            googleDocUrl: result.url,
+            title: formData.title,
+            type: docType
+          });
+          
+          // Відкриваємо Google документ в новій вкладці
           window.open(result.url, '_blank');
-          showSuccess('Документ успішно створено в Google Docs!');
-          onClose();
+          const typeName = docType === 'sheet' ? 'Google Sheets' : 'Google Docs';
+          showSuccess(`Документ успішно створено в ${typeName}! Документ збережено в базі даних.`);
+          
+          // Викликаємо callback для оновлення списку документів
+          if (onDocumentCreated) {
+            onDocumentCreated();
+          }
         } else {
-          throw new Error('No URL returned from Google Docs creation');
+          throw new Error('No URL returned from Google document creation');
         }
       } catch (error) {
-        console.error('Error creating Google Doc:', error);
-        showError(`Помилка при створенні Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+        console.error('Error creating Google document:', error);
+        showError(`Помилка при створенні: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
       } finally {
         setIsCreatingGoogleDoc(false);
       }
@@ -244,6 +300,29 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
   const nextStep = useCallback(() => {
     if (currentStep < 3) setCurrentStep(prev => prev + 1);
   }, [currentStep]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCreatedGoogleDoc(null);
+      setFormData({
+        title: '',
+        description: '',
+        type: 'document',
+        category: '',
+        template: 'blank',
+        content: '',
+        additionalContext: '',
+        tags: [],
+        collaborators: [],
+        visibility: 'private',
+        accessLevel: 'view'
+      });
+      setIsAIGenerated(false);
+      setCreateInGoogleDocs(false);
+      setCurrentStep(1);
+    }
+  }, [isOpen]);
 
   const prevStep = useCallback(() => {
     if (currentStep > 1) setCurrentStep(prev => prev - 1);
@@ -379,21 +458,32 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
                   Шаблон документа
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {documentTemplates.map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      onClick={() => handleInputChange('template', template.id)}
-                      className={`p-4 border-2 rounded-lg text-left transition-all ${
-                        formData.template === template.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="font-medium text-gray-900">{template.name}</div>
-                      <div className="text-sm text-gray-500">{template.description}</div>
-                    </button>
-                  ))}
+                  {documentTemplates
+                    .filter(template => {
+                      // Фільтруємо шаблони за типом документа
+                      const docType = formData.type === 'spreadsheet' ? 'spreadsheet' : 
+                                     formData.type === 'lecture' ? 'lecture' :
+                                     'document';
+                      return template.types.includes(docType) || 
+                             template.types.includes('document') || 
+                             template.types.includes('lecture') ||
+                             template.types.includes('other');
+                    })
+                    .map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => handleInputChange('template', template.id)}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                          formData.template === template.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="font-medium text-gray-900">{template.name}</div>
+                        <div className="text-sm text-gray-500">{template.description}</div>
+                      </button>
+                    ))}
                 </div>
               </div>
 
@@ -453,15 +543,48 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
               {/* Content */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Контент документа
+                  {formData.type === 'spreadsheet' ? 'Дані таблиці (CSV формат)' : 'Контент документа'}
                 </label>
                 <textarea
                   value={formData.content}
                   onChange={(e) => handleInputChange('content', e.target.value)}
                   rows={8}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                  placeholder="Введіть або згенеруйте контент документа..."
+                  placeholder={
+                    formData.type === 'spreadsheet' 
+                      ? 'Введіть дані у форматі CSV (рядки через кому, рядки через новий рядок)...'
+                      : 'Введіть або згенеруйте контент документа...'
+                  }
                 />
+                {formData.type === 'spreadsheet' && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Приклад: Назва, Значення, Одиниця виміру<br />
+                    Рядок 1, 100, шт<br />
+                    Рядок 2, 200, шт
+                  </p>
+                )}
+              </div>
+
+              {/* Create in Google option */}
+              <div className="flex items-center space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="createInGoogle"
+                  checked={createInGoogleDocs}
+                  onChange={(e) => setCreateInGoogleDocs(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="createInGoogle" className="flex-1 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-900">
+                      Створити в {formData.type === 'spreadsheet' ? 'Google Sheets' : 'Google Docs'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Документ буде створено в Google Drive та відкрито в новій вкладці
+                  </p>
+                </label>
               </div>
 
               {/* Tags */}
@@ -615,8 +738,169 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
           )}
         </div>
 
+        {/* Success State after Google Doc Creation */}
+        {createdGoogleDoc && (
+          <div className="p-6 border-t border-gray-200 bg-green-50">
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-medium text-green-900 mb-1">
+                  {createdGoogleDoc.needsSave ? 'Документ створено, але не збережено в базі' : 'Документ успішно створено!'}
+                </h3>
+                <p className="text-sm text-green-700 mb-4">
+                  {createdGoogleDoc.needsSave ? (
+                    <>
+                      Документ "{createdGoogleDoc.title}" створено в {createdGoogleDoc.type === 'sheet' ? 'Google Sheets' : 'Google Docs'}, але не вдалося зберегти в базі даних. Натисніть "Зберегти в базі" щоб додати документ до системи.
+                    </>
+                  ) : (
+                    <>
+                      Документ "{createdGoogleDoc.title}" створено в {createdGoogleDoc.type === 'sheet' ? 'Google Sheets' : 'Google Docs'} та збережено в базі даних.
+                    </>
+                  )}
+                </p>
+                <div className="flex space-x-3">
+                  {createdGoogleDoc.needsSave && (
+                    <button
+                      onClick={async () => {
+                        setIsSavingToDatabase(true);
+                        try {
+                          const response = await fetch('/api/documents', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              title: createdGoogleDoc.title,
+                              content: formData.content,
+                              category: formData.category,
+                              type: createdGoogleDoc.type,
+                              tags: formData.tags,
+                              metadata: {
+                                subject: formData.description || 'Загальний',
+                                semester: '1',
+                                academicYear: '2024-2025',
+                                department: 'Загальний',
+                                course: '1',
+                                language: 'uk',
+                              },
+                              googleDocId: createdGoogleDoc.googleDocId,
+                              googleDocUrl: createdGoogleDoc.googleDocUrl,
+                            }),
+                          });
+
+                          if (!response.ok) {
+                            throw new Error('Failed to save document');
+                          }
+
+                          const savedDoc = await response.json();
+                          showSuccess('Документ успішно збережено в базі даних!');
+                          
+                          // Оновлюємо стан
+                          setCreatedGoogleDoc({
+                            ...createdGoogleDoc,
+                            documentId: savedDoc.id,
+                            needsSave: false
+                          });
+                          
+                          // Оновлюємо список документів
+                          if (onDocumentCreated) {
+                            onDocumentCreated();
+                          }
+                        } catch (error) {
+                          console.error('Error saving document:', error);
+                          showError('Помилка при збереженні документа в базі даних');
+                        } finally {
+                          setIsSavingToDatabase(false);
+                        }
+                      }}
+                      disabled={isSavingToDatabase}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSavingToDatabase ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Збереження...
+                        </>
+                      ) : (
+                        <>
+                          Зберегти в базі
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <a
+                    href={createdGoogleDoc.googleDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Відкрити в {createdGoogleDoc.type === 'sheet' ? 'Google Sheets' : 'Google Docs'}
+                  </a>
+                  <button
+                    onClick={() => {
+                      setCreatedGoogleDoc(null);
+                      setFormData({
+                        title: '',
+                        description: '',
+                        type: 'document',
+                        category: '',
+                        template: 'blank',
+                        content: '',
+                        additionalContext: '',
+                        tags: [],
+                        collaborators: [],
+                        visibility: 'private',
+                        accessLevel: 'view'
+                      });
+                      setIsAIGenerated(false);
+                      setCreateInGoogleDocs(false);
+                      setCurrentStep(1);
+                      onClose();
+                    }}
+                    className="inline-flex items-center px-4 py-2 bg-white text-green-700 border border-green-300 rounded-lg hover:bg-green-50 transition-colors text-sm"
+                  >
+                    Закрити
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCreatedGoogleDoc(null);
+                      setFormData({
+                        title: '',
+                        description: '',
+                        type: 'document',
+                        category: '',
+                        template: 'blank',
+                        content: '',
+                        additionalContext: '',
+                        tags: [],
+                        collaborators: [],
+                        visibility: 'private',
+                        accessLevel: 'view'
+                      });
+                      setIsAIGenerated(false);
+                      setCreateInGoogleDocs(false);
+                      setCurrentStep(1);
+                    }}
+                    className="inline-flex items-center px-4 py-2 bg-white text-green-700 border border-green-300 rounded-lg hover:bg-green-50 transition-colors text-sm"
+                  >
+                    Створити ще один
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        {!createdGoogleDoc && (
+          <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={prevStep}
             disabled={currentStep === 1}
@@ -650,7 +934,9 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
                     {createInGoogleDocs ? (
                       <>
                         <ExternalLink className="w-4 h-4" />
-                        <span>Створити в Google Docs</span>
+                        <span>
+                          {formData.type === 'spreadsheet' ? 'Створити в Google Sheets' : 'Створити в Google Docs'}
+                        </span>
                       </>
                     ) : (
                       <span>Створити документ</span>
@@ -661,6 +947,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
