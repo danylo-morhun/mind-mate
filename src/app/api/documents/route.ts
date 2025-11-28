@@ -63,12 +63,11 @@ export async function POST(request: NextRequest) {
       'document': 'doc',
       'lecture': 'doc',
       'spreadsheet': 'sheet',
-      'presentation': 'slide',
       'other': 'doc',
       // Also handle if already in correct format
       'doc': 'doc',
       'sheet': 'sheet',
-      'slide': 'slide',
+      'slide': 'slide', // Keep for backward compatibility with existing data
       'pdf': 'pdf',
       'drawing': 'drawing',
       'form': 'form'

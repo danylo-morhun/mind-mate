@@ -11,7 +11,6 @@ import {
   FolderOpen,
   BookOpen,
   FileSpreadsheet,
-  Presentation,
   Archive,
   Star,
   Clock,
@@ -66,7 +65,6 @@ export default function DocumentsPage() {
     { id: 'lectures', name: 'Лекції', icon: BookOpen, color: 'text-blue-600' },
     { id: 'methodics', name: 'Методички', icon: FileText, color: 'text-green-600' },
     { id: 'reports', name: 'Звіти', icon: FileSpreadsheet, color: 'text-purple-600' },
-    { id: 'presentations', name: 'Презентації', icon: Presentation, color: 'text-orange-600' },
     { id: 'plans', name: 'Плани', icon: Clock, color: 'text-red-600' }
   ];
 
@@ -74,7 +72,6 @@ export default function DocumentsPage() {
     { id: 'all', name: 'Всі типи', color: 'text-gray-600' },
     { id: 'doc', name: 'Google Docs', color: 'text-blue-600' },
     { id: 'sheet', name: 'Google Sheets', color: 'text-green-600' },
-    { id: 'slide', name: 'Google Slides', color: 'text-orange-600' },
     { id: 'pdf', name: 'PDF', color: 'text-red-600' }
   ];
 
@@ -173,7 +170,17 @@ export default function DocumentsPage() {
   const handleExportToGoogleDocs = async (doc: any) => {
     setIsExportingToGoogleDocs(doc.id);
     try {
-      const response = await fetch(`/api/documents/${doc.id}/export-to-google-docs`, {
+      // Визначаємо тип документа та відповідний API endpoint
+      const docType = doc.type || 'doc';
+      let apiEndpoint = `/api/documents/${doc.id}/export-to-google-docs`;
+      let successMessage = 'Документ успішно експортовано до Google Docs!';
+      
+      if (docType === 'sheet') {
+        apiEndpoint = `/api/documents/${doc.id}/export-to-google-sheets`;
+        successMessage = 'Документ успішно експортовано до Google Sheets!';
+      }
+
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -182,16 +189,16 @@ export default function DocumentsPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to export to Google Docs' }));
-        throw new Error(errorData.error || 'Failed to export to Google Docs');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to export' }));
+        throw new Error(errorData.error || 'Failed to export');
       }
 
       const result = await response.json();
       
       if (result.url) {
-        // Відкриваємо Google Docs в новій вкладці
+        // Відкриваємо Google документ в новій вкладці
         window.open(result.url, '_blank');
-        showSuccess('Документ успішно експортовано до Google Docs!');
+        showSuccess(successMessage);
         
         // Оновлюємо список документів, щоб показати посилання
         loadDocuments();
@@ -199,8 +206,8 @@ export default function DocumentsPage() {
         throw new Error('No URL returned from export');
       }
     } catch (error) {
-      console.error('Error exporting to Google Docs:', error);
-      showError(`Помилка при експорті до Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      console.error('Error exporting to Google:', error);
+      showError(`Помилка при експорті: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsExportingToGoogleDocs(null);
     }
@@ -423,11 +430,12 @@ export default function DocumentsPage() {
       </div>
 
       {/* Модальне вікно створення документа */}
-      <CreateDocumentModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreateDocument={handleCreateDocument}
-      />
+        <CreateDocumentModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreateDocument={handleCreateDocument}
+          onDocumentCreated={loadDocuments}
+        />
 
       {/* Модальне вікно редагування документа */}
       <EditDocumentModal
