@@ -1,6 +1,23 @@
 import GoogleProvider from "next-auth/providers/google";
+import type { NextAuthOptions } from "next-auth";
 
-export const authOptions = {
+// Validate required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error(
+    "NEXTAUTH_SECRET is required. Please set it in your environment variables."
+  );
+}
+
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  throw new Error(
+    "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required. Please set them in your environment variables."
+  );
+}
+
+export const authOptions: NextAuthOptions = {
+  // Required for production deployments - NextAuth uses this to encrypt JWT tokens
+  secret: process.env.NEXTAUTH_SECRET,
+  
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
@@ -46,4 +63,6 @@ export const authOptions = {
   session: {
     strategy: "jwt" as const,
   },
+  // Debug mode in development
+  debug: process.env.NODE_ENV === "development",
 };

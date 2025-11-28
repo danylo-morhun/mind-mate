@@ -50,7 +50,14 @@ NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL=your-script-url
 1. Create Google Cloud Project
 2. Enable APIs: Gmail, Drive, Docs, Sheets, Calendar
 3. Create OAuth 2.0 credentials
-4. Deploy Google Apps Script from `google-apps-script/` folder
+4. **Important**: Add authorized redirect URIs:
+   - Development: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://yourdomain.com/api/auth/callback/google`
+5. Deploy Google Apps Script from `google-apps-script/` folder
+
+### Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions, especially for fixing OAuth redirect URI issues.
 
 ## 📊 Progress
 
