@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Document } from '@/lib/types';
 import DocumentCard from './DocumentCard';
 import { useDocuments } from '@/contexts/DocumentsContext';
+import { parseCSV, getTablePreview } from '@/lib/utils/csv-parser';
+import TablePreview from './TablePreview';
 
 interface DocumentListProps {
   documents: Document[];
@@ -222,9 +224,30 @@ function DocumentListItem({
               >
                 {document.title}
               </h3>
-              <p className="text-gray-600 text-sm line-clamp-2">
-                {document.content}
-              </p>
+              {document.type === 'sheet' || document.type === 'spreadsheet' ? (
+                <div className="mt-2 overflow-x-auto">
+                  {(() => {
+                    const tableData = parseCSV(document.content || '');
+                    if (tableData.headers.length > 0) {
+                      const preview = getTablePreview(tableData, 2);
+                      return (
+                        <TablePreview 
+                          data={preview} 
+                          maxRows={2}
+                          className="text-xs"
+                        />
+                      );
+                    }
+                    return (
+                      <p className="text-gray-500 text-sm">Таблиця порожня</p>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className="text-gray-600 text-sm line-clamp-2">
+                  {document.content}
+                </p>
+              )}
             </div>
           </div>
 

@@ -4,6 +4,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { X, FileText, Download, Printer, Share2, Eye, Users, Lock, Globe, Tag, Calendar, User, File, BookOpen, FileSpreadsheet, Presentation, Loader2 } from 'lucide-react';
 import { marked } from 'marked';
 import { useAlert } from '@/contexts/AlertContext';
+import { parseCSV } from '@/lib/utils/csv-parser';
+import TablePreview from './TablePreview';
 
 interface Document {
   id: string;
@@ -73,16 +75,31 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
     gfm: true,
   });
 
-  // Parse markdown content
+  // Parse markdown content or CSV for tables
   const parsedContent = useMemo(() => {
     if (!doc?.content) return '';
+    
+    // If it's a spreadsheet, parse as CSV
+    if (doc.type === 'sheet' || doc.type === 'spreadsheet') {
+      return null; // Will be handled separately
+    }
+    
     try {
       return marked.parse(doc.content);
     } catch (error) {
       console.error('Error parsing markdown:', error);
       return doc.content.replace(/\n/g, '<br>');
     }
-  }, [doc?.content]);
+  }, [doc?.content, doc?.type]);
+
+  // Parse CSV for spreadsheet documents
+  const tableData = useMemo(() => {
+    if (!doc?.content) return null;
+    if (doc.type === 'sheet' || doc.type === 'spreadsheet') {
+      return parseCSV(doc.content);
+    }
+    return null;
+  }, [doc?.content, doc?.type]);
 
   if (!isOpen || !doc) return null;
 
@@ -204,21 +221,44 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
   const handlePrint = async () => {
     setIsPrinting(true);
     try {
-      // Parse markdown for print
-      let printContent = '';
-      try {
-        printContent = marked.parse(doc.content || '');
-      } catch (error) {
-        console.error('Error parsing markdown for print:', error);
-        printContent = (doc.content || '').replace(/\n/g, '<br>');
-      }
-      
       // Escape HTML for title and metadata
       const escapeHtml = (text: string) => {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
       };
+      
+      // Parse markdown or CSV for print
+      let printContent = '';
+      if (doc.type === 'sheet' || doc.type === 'spreadsheet') {
+        // Generate HTML table from CSV
+        const csvData = parseCSV(doc.content || '');
+        if (csvData.headers.length > 0) {
+          printContent = '<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">';
+          printContent += '<thead><tr>';
+          csvData.headers.forEach(header => {
+            printContent += `<th style="border: 1px solid #cbd5e1; padding: 12px; text-align: left; background: #3b82f6; color: white;">${escapeHtml(header || '')}</th>`;
+          });
+          printContent += '</tr></thead><tbody>';
+          csvData.rows.forEach(row => {
+            printContent += '<tr>';
+            csvData.headers.forEach((_, index) => {
+              printContent += `<td style="border: 1px solid #cbd5e1; padding: 12px;">${escapeHtml(row[index] || '-')}</td>`;
+            });
+            printContent += '</tr>';
+          });
+          printContent += '</tbody></table>';
+        } else {
+          printContent = '<p>Таблиця порожня</p>';
+        }
+      } else {
+        try {
+          printContent = marked.parse(doc.content || '');
+        } catch (error) {
+          console.error('Error parsing markdown for print:', error);
+          printContent = (doc.content || '').replace(/\n/g, '<br>');
+        }
+      }
       
       // Створюємо нове вікно для друку
       const printWindow = window.open('', '_blank');
@@ -416,11 +456,23 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
                 )}
 
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Контент документа</h2>
-                  <div 
-                    className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: parsedContent }}
-                  />
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                    {doc.type === 'sheet' || doc.type === 'spreadsheet' ? 'Дані таблиці' : 'Контент документа'}
+                  </h2>
+                  {tableData ? (
+                    <TablePreview 
+                      data={tableData} 
+                      showFullTable={true}
+                      className="mt-4"
+                    />
+                  ) : parsedContent ? (
+                    <div 
+                      className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: parsedContent }}
+                    />
+                  ) : (
+                    <div className="text-gray-500 text-sm">Контент відсутній</div>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,10 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   FileText, 
   FileSpreadsheet, 
-  Presentation, 
   File, 
   MoreVertical,
   Eye,
@@ -20,6 +19,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { Document, DocumentType, DocumentCategory, DocumentStatus } from '@/lib/types';
+import { parseCSV, getTablePreview } from '@/lib/utils/csv-parser';
+import TablePreview from './TablePreview';
 
 interface DocumentCardProps {
   document: Document;
@@ -59,8 +60,6 @@ export default function DocumentCard({
         return <FileText className="h-6 w-6 text-blue-600" />;
       case 'sheet':
         return <FileSpreadsheet className="h-6 w-6 text-green-600" />;
-      case 'slide':
-        return <Presentation className="h-6 w-6 text-orange-600" />;
       case 'pdf':
         return <File className="h-6 w-6 text-red-600" />;
       default:
@@ -192,9 +191,32 @@ export default function DocumentCard({
 
       {/* Основний контент */}
       <div className="p-4">
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-          {truncateText(document.content, 120)}
-        </p>
+        {document.type === 'sheet' || document.type === 'spreadsheet' ? (
+          <div className="mb-4">
+            {(() => {
+              const tableData = parseCSV(document.content || '');
+              if (tableData.headers.length > 0) {
+                const preview = getTablePreview(tableData, 3);
+                return (
+                  <div className="overflow-hidden">
+                    <TablePreview 
+                      data={preview} 
+                      maxRows={3}
+                      className="text-xs"
+                    />
+                  </div>
+                );
+              }
+              return (
+                <p className="text-gray-500 text-sm">Таблиця порожня</p>
+              );
+            })()}
+          </div>
+        ) : (
+          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+            {truncateText(document.content, 120)}
+          </p>
+        )}
 
         {/* Метадані */}
         <div className="space-y-2 text-sm text-gray-500">
@@ -226,7 +248,7 @@ export default function DocumentCard({
                 className="text-blue-600 hover:text-blue-800 underline text-xs"
                 onClick={(e) => e.stopPropagation()}
               >
-                Відкрити в Google Docs
+                {document.type === 'sheet' ? 'Відкрити в Google Sheets' : 'Відкрити в Google Docs'}
               </a>
             </div>
           )}
@@ -296,7 +318,9 @@ export default function DocumentCard({
                 onClick={() => onExportToGoogleDocs(document)}
                 disabled={isExportingToGoogleDocs}
                 className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
-                title="Експортувати до Google Docs"
+                title={
+                  document.type === 'sheet' ? 'Експортувати до Google Sheets' : 'Експортувати до Google Docs'
+                }
               >
                 {isExportingToGoogleDocs ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -311,7 +335,9 @@ export default function DocumentCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
-                title="Відкрити в Google Docs"
+                title={
+                  document.type === 'sheet' ? 'Відкрити в Google Sheets' : 'Відкрити в Google Docs'
+                }
                 onClick={(e) => e.stopPropagation()}
               >
                 <ExternalLink className="h-4 w-4" />
