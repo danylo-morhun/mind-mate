@@ -124,7 +124,7 @@ export default function DashboardPage() {
                 value={analyticsData?.ai?.totalRepliesGenerated || 0}
                 icon={Bot}
                 color="green"
-                subtitle={`успішність ${analyticsData?.ai?.successRate || 0}%`}
+                subtitle={`успішність ${analyticsData?.ai?.successRate.toFixed(2) || 0}%`}
               />
               
               <StatsCard
