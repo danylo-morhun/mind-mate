@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { X, FileText, Download, Printer, Share2, Eye, Users, Lock, Globe, Tag, Calendar, User, File, BookOpen, FileSpreadsheet, Presentation, Loader2 } from 'lucide-react';
 import { marked } from 'marked';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface Document {
   id: string;
@@ -61,6 +62,7 @@ const exportFormats = [
 ];
 
 export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, document: doc }: ViewDocumentModalProps) {
+  const { showError } = useAlert();
   const [activeTab, setActiveTab] = useState<'content' | 'metadata' | 'sharing'>('content');
   const [isExporting, setIsExporting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -193,7 +195,7 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export error:', error);
-      alert(`Помилка при експорті документа: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      showError(`Помилка при експорті документа: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsExporting(false);
     }
@@ -267,7 +269,7 @@ export default function ViewDocumentModal({ isOpen, onClose, onEdit, onShare, do
       }
     } catch (error) {
       console.error('Print error:', error);
-      alert('Помилка при друку документа');
+      showError('Помилка при друку документа');
     } finally {
       setIsPrinting(false);
     }

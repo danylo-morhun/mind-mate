@@ -20,6 +20,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { useDocuments } from '@/contexts/DocumentsContext';
+import { useAlert } from '@/contexts/AlertContext';
+import { useConfirm } from '@/hooks/useConfirm';
 import DocumentList from '@/components/documents/DocumentList';
 import CreateDocumentModal from '@/components/documents/CreateDocumentModal';
 import EditDocumentModal from '@/components/documents/EditDocumentModal';
@@ -27,6 +29,8 @@ import ViewDocumentModal from '@/components/documents/ViewDocumentModal';
 import ShareDocumentModal from '@/components/documents/ShareDocumentModal';
 
 export default function DocumentsPage() {
+  const { showSuccess, showError } = useAlert();
+  const { confirm, ConfirmDialog } = useConfirm();
   const { 
     state, 
     loadDocuments, 
@@ -111,13 +115,17 @@ export default function DocumentsPage() {
   };
 
   const handleDocumentDelete = async (documentId: string) => {
-    if (confirm('Ви впевнені, що хочете видалити цей документ?')) {
+    const confirmed = await confirm({
+      message: 'Ви впевнені, що хочете видалити цей документ?',
+      title: 'Видалення документа',
+    });
+    if (confirmed) {
       setIsDeleting(documentId);
       try {
         await deleteDocument(documentId);
-        alert('Документ успішно видалено!');
+        showSuccess('Документ успішно видалено!');
       } catch (error) {
-        alert('Помилка при видаленні документа');
+        showError('Помилка при видаленні документа');
       } finally {
         setIsDeleting(null);
       }
@@ -128,9 +136,9 @@ export default function DocumentsPage() {
     setIsCreating(true);
     try {
       await createDocument(documentData);
-      alert('Документ успішно створено!');
+      showSuccess('Документ успішно створено!');
     } catch (error) {
-      alert('Помилка при створенні документа');
+      showError('Помилка при створенні документа');
     } finally {
       setIsCreating(false);
     }
@@ -140,11 +148,11 @@ export default function DocumentsPage() {
     setIsUpdating(updatedDocument.id);
     try {
       await updateDocument(updatedDocument.id, updatedDocument);
-      alert('Документ успішно оновлено!');
+      showSuccess('Документ успішно оновлено!');
       setIsEditModalOpen(false);
       setSelectedDocumentForEdit(null);
     } catch (error) {
-      alert('Помилка при оновленні документа');
+      showError('Помилка при оновленні документа');
     } finally {
       setIsUpdating(null);
     }
@@ -183,7 +191,7 @@ export default function DocumentsPage() {
       if (result.url) {
         // Відкриваємо Google Docs в новій вкладці
         window.open(result.url, '_blank');
-        alert('Документ успішно експортовано до Google Docs!');
+        showSuccess('Документ успішно експортовано до Google Docs!');
         
         // Оновлюємо список документів, щоб показати посилання
         loadDocuments();
@@ -192,7 +200,7 @@ export default function DocumentsPage() {
       }
     } catch (error) {
       console.error('Error exporting to Google Docs:', error);
-      alert(`Помилка при експорті до Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      showError(`Помилка при експорті до Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsExportingToGoogleDocs(null);
     }
@@ -264,7 +272,7 @@ export default function DocumentsPage() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading document:', error);
-      alert(`Помилка при завантаженні документа: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      showError(`Помилка при завантаженні документа: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsDownloading(null);
     }
@@ -284,7 +292,9 @@ export default function DocumentsPage() {
   const filteredDocuments = getFilteredDocuments();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      {ConfirmDialog}
+      <div className="min-h-screen bg-gray-50">
       {/* Заголовок сторінки */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -452,5 +462,6 @@ export default function DocumentsPage() {
         document={selectedDocumentForShare}
       />
     </div>
+    </>
   );
 }

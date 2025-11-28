@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, FileText, Link, Copy, Users, Lock, Globe, Eye, MessageSquare, Edit, Mail, Calendar, User, Check, AlertCircle } from 'lucide-react';
+import { useAlert } from '@/contexts/AlertContext';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface Document {
   id: string;
@@ -71,6 +73,8 @@ const linkExpirationOptions = [
 ];
 
 export default function ShareDocumentModal({ isOpen, onClose, document }: ShareDocumentModalProps) {
+  const { showSuccess, showError } = useAlert();
+  const { confirm, ConfirmDialog } = useConfirm();
   const [activeTab, setActiveTab] = useState<'links' | 'invitations' | 'settings'>('links');
   const [newLinkAccessLevel, setNewLinkAccessLevel] = useState<'view' | 'comment' | 'edit'>('view');
   const [newLinkExpiration, setNewLinkExpiration] = useState('never');
@@ -174,7 +178,7 @@ export default function ShareDocumentModal({ isOpen, onClose, document }: ShareD
       };
 
       // TODO: Додати нове посилання до стану
-      alert('Посилання для поширення створено!');
+      showSuccess('Посилання для поширення створено!');
       
       // Скидаємо форму
       setNewLinkAccessLevel('view');
@@ -182,7 +186,7 @@ export default function ShareDocumentModal({ isOpen, onClose, document }: ShareD
       setCustomExpirationDate('');
     } catch (error) {
       console.error('Error creating link:', error);
-      alert('Помилка при створенні посилання');
+      showError('Помилка при створенні посилання');
     } finally {
       setIsCreatingLink(false);
     }
@@ -217,7 +221,7 @@ export default function ShareDocumentModal({ isOpen, onClose, document }: ShareD
       };
 
       // TODO: Додати нове запрошення до стану
-      alert('Запрошення відправлено!');
+      showSuccess('Запрошення відправлено!');
       
       // Скидаємо форму
       setNewInvitationEmail('');
@@ -225,7 +229,7 @@ export default function ShareDocumentModal({ isOpen, onClose, document }: ShareD
       setInvitationMessage('');
     } catch (error) {
       console.error('Error sending invitation:', error);
-      alert('Помилка при відправці запрошення');
+      showError('Помилка при відправці запрошення');
     } finally {
       setIsSendingInvitation(false);
     }
@@ -236,36 +240,46 @@ export default function ShareDocumentModal({ isOpen, onClose, document }: ShareD
       await navigator.clipboard.writeText(url);
       setCopiedLink(url);
       setTimeout(() => setCopiedLink(null), 2000);
-      alert('Посилання скопійовано в буфер обміну!');
+      showSuccess('Посилання скопійовано в буфер обміну!');
     } catch (error) {
       console.error('Error copying link:', error);
-      alert('Помилка при копіюванні посилання');
+      showError('Помилка при копіюванні посилання');
     }
-  }, []);
+  }, [showSuccess, showError]);
 
   const handleDeactivateLink = useCallback(async (linkId: string) => {
-    if (confirm('Ви впевнені, що хочете деактивувати це посилання?')) {
+    const confirmed = await confirm({
+      message: 'Ви впевнені, що хочете деактивувати це посилання?',
+      title: 'Деактивація посилання',
+    });
+    if (confirmed) {
       // TODO: Інтеграція з API для деактивації посилань
-      alert('Посилання деактивовано!');
+      showSuccess('Посилання деактивовано!');
     }
-  }, []);
+  }, [confirm, showSuccess]);
 
   const handleResendInvitation = useCallback(async (invitationId: string) => {
     // TODO: Інтеграція з API для повторної відправки запрошень
-    alert('Запрошення повторно відправлено!');
-  }, []);
+    showSuccess('Запрошення повторно відправлено!');
+  }, [showSuccess]);
 
   const handleCancelInvitation = useCallback(async (invitationId: string) => {
-    if (confirm('Ви впевнені, що хочете скасувати це запрошення?')) {
+    const confirmed = await confirm({
+      message: 'Ви впевнені, що хочете скасувати це запрошення?',
+      title: 'Скасування запрошення',
+    });
+    if (confirmed) {
       // TODO: Інтеграція з API для скасування запрошень
-      alert('Запрошення скасовано!');
+      showSuccess('Запрошення скасовано!');
     }
-  }, []);
+  }, [confirm, showSuccess]);
 
   if (!isOpen || !document) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
+    <>
+      {ConfirmDialog}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -659,5 +673,6 @@ export default function ShareDocumentModal({ isOpen, onClose, document }: ShareD
         </div>
       </div>
     </div>
+    </>
   );
 }

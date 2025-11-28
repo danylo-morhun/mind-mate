@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, FileText, Save, History, Users, Eye, EyeOff, Lock, Globe, Tag, MessageSquare, Clock, User, Edit, Loader2 } from 'lucide-react';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface Document {
   id: string;
@@ -55,6 +56,7 @@ interface DocumentComment {
 }
 
 export default function EditDocumentModal({ isOpen, onClose, onSave, document }: EditDocumentModalProps) {
+  const { showSuccess, showError } = useAlert();
   const [formData, setFormData] = useState<Document | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'history' | 'comments' | 'sharing'>('edit');
@@ -181,7 +183,7 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
       }
     } catch (error) {
       console.error('Error adding comment:', error);
-      alert(`Помилка при додаванні коментаря: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      showError(`Помилка при додаванні коментаря: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     }
   }, [newComment, document]);
 
@@ -211,7 +213,7 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
       }
     } catch (error) {
       console.error('Error adding reply:', error);
-      alert(`Помилка при додаванні відповіді: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      showError(`Помилка при додаванні відповіді: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     }
   }, [replyContent, document]);
 
@@ -254,13 +256,13 @@ export default function EditDocumentModal({ isOpen, onClose, onSave, document }:
       if (result.success && result.content) {
         setFormData(prev => prev ? { ...prev, content: result.content } : null);
         console.log('Content improved successfully:', result.metadata);
-        alert('Контент успішно покращено за допомогою AI!');
+        showSuccess('Контент успішно покращено за допомогою AI!');
       } else {
         throw new Error('No improved content received from AI');
       }
     } catch (error) {
       console.error('Error improving content:', error);
-      alert(`Помилка при покращенні контенту: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      showError(`Помилка при покращенні контенту: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsImproving(false);
     }

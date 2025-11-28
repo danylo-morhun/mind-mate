@@ -1,5 +1,8 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Tag, Eye, EyeOff } from 'lucide-react';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface Label {
   id: string;
@@ -18,7 +21,7 @@ interface LabelManagerProps {
 }
 
 export default function LabelManager({ labels, onLabelUpdate, hideButton = false, hideModal = false }: LabelManagerProps) {
-
+  const { confirm, ConfirmDialog } = useConfirm();
   const [isOpen, setIsOpen] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formData, setFormData] = useState({
@@ -89,7 +92,11 @@ export default function LabelManager({ labels, onLabelUpdate, hideButton = false
   };
 
   const handleDeleteLabel = async (labelId: string) => {
-    if (!confirm('Ви впевнені, що хочете видалити цю мітку?')) return;
+    const confirmed = await confirm({
+      message: 'Ви впевнені, що хочете видалити цю мітку?',
+      title: 'Видалення мітки',
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch('/api/gmail/labels/manage', {
@@ -132,7 +139,9 @@ export default function LabelManager({ labels, onLabelUpdate, hideButton = false
   };
 
   return (
-    <div className="relative">
+    <>
+      {ConfirmDialog}
+      <div className="relative">
       {/* Кнопка відкриття - показується тільки якщо не прихована */}
       {!hideButton && (
         <button
@@ -298,5 +307,6 @@ export default function LabelManager({ labels, onLabelUpdate, hideButton = false
         </div>
       )}
     </div>
+    </>
   );
 }

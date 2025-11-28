@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { X, FileText, BookOpen, FileSpreadsheet, Presentation, File, Users, Lock, Globe, Eye, EyeOff, ExternalLink, Loader2 } from 'lucide-react';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface CreateDocumentModalProps {
   isOpen: boolean;
@@ -58,6 +59,7 @@ const accessLevels = [
 ];
 
 export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument }: CreateDocumentModalProps) {
+  const { showSuccess, showError } = useAlert();
   const [formData, setFormData] = useState<DocumentFormData>({
     title: '',
     description: '',
@@ -143,7 +145,7 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
       }
     } catch (error) {
       console.error('Error generating content:', error);
-      alert(`Помилка при генерації контенту: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+      showError(`Помилка при генерації контенту: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -188,14 +190,14 @@ export default function CreateDocumentModal({ isOpen, onClose, onCreateDocument 
         if (result.url) {
           // Відкриваємо Google Docs в новій вкладці
           window.open(result.url, '_blank');
-          alert('Документ успішно створено в Google Docs!');
+          showSuccess('Документ успішно створено в Google Docs!');
           onClose();
         } else {
           throw new Error('No URL returned from Google Docs creation');
         }
       } catch (error) {
         console.error('Error creating Google Doc:', error);
-        alert(`Помилка при створенні Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
+        showError(`Помилка при створенні Google Docs: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
       } finally {
         setIsCreatingGoogleDoc(false);
       }

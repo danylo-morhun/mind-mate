@@ -1,5 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import { MoreVertical, Tag, Filter, Download, Archive, Trash2 } from 'lucide-react';
+import { useAlert } from '@/contexts/AlertContext';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface EmailListMenuProps {
   labels: any[];
@@ -7,6 +11,8 @@ interface EmailListMenuProps {
 }
 
 export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuProps) {
+  const { showSuccess, showError, showWarning } = useAlert();
+  const { confirm, ConfirmDialog } = useConfirm();
   const [isOpen, setIsOpen] = useState(false);
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [newLabelForm, setNewLabelForm] = useState({
@@ -24,7 +30,7 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
     e.preventDefault();
     
     if (!newLabelForm.name.trim()) {
-      alert('Введіть назву мітки');
+      showWarning('Введіть назву мітки');
       return;
     }
 
@@ -69,15 +75,15 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
         onLabelUpdate();
         
         // Показуємо повідомлення про успіх
-        alert('Мітку успішно створено!');
+        showSuccess('Мітку успішно створено!');
       } else {
         const errorData = await response.json();
         console.error('Error response:', errorData);
-        alert(`Помилка створення мітки: ${errorData.error || 'Невідома помилка'}`);
+        showError(`Помилка створення мітки: ${errorData.error || 'Невідома помилка'}`);
       }
     } catch (error) {
       console.error('Failed to create label:', error);
-      alert('Помилка створення мітки. Спробуйте ще раз.');
+      showError('Помилка створення мітки. Спробуйте ще раз.');
     } finally {
       setIsCreatingLabel(false);
     }
@@ -87,7 +93,7 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
     e.preventDefault();
     
     if (!editingLabel || !editingLabel.name.trim()) {
-      alert('Введіть назву мітки');
+      showWarning('Введіть назву мітки');
       return;
     }
 
@@ -112,23 +118,27 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
       });
 
       if (response.ok) {
-        alert('Мітку успішно оновлено!');
+        showSuccess('Мітку успішно оновлено!');
         setEditingLabel(null);
         onLabelUpdate();
       } else {
         const errorData = await response.json();
-        alert(`Помилка оновлення мітки: ${errorData.error || 'Невідома помилка'}`);
+        showError(`Помилка оновлення мітки: ${errorData.error || 'Невідома помилка'}`);
       }
     } catch (error) {
       console.error('Failed to update label:', error);
-      alert('Помилка оновлення мітки. Спробуйте ще раз.');
+      showError('Помилка оновлення мітки. Спробуйте ще раз.');
     } finally {
       setIsEditingLabel(false);
     }
   };
 
   const handleDeleteLabel = async (labelId: string) => {
-    if (!confirm('Ви впевнені, що хочете видалити цю мітку?')) {
+    const confirmed = await confirm({
+      message: 'Ви впевнені, що хочете видалити цю мітку?',
+      title: 'Видалення мітки',
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -147,15 +157,15 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
       });
 
       if (response.ok) {
-        alert('Мітку успішно видалено!');
+        showSuccess('Мітку успішно видалено!');
         onLabelUpdate();
       } else {
         const errorData = await response.json();
-        alert(`Помилка видалення мітки: ${errorData.error || 'Невідома помилка'}`);
+        showError(`Помилка видалення мітки: ${errorData.error || 'Невідома помилка'}`);
       }
     } catch (error) {
       console.error('Failed to delete label:', error);
-      alert('Помилка видалення мітки. Спробуйте ще раз.');
+      showError('Помилка видалення мітки. Спробуйте ще раз.');
     } finally {
       setIsDeletingLabel(false);
     }
@@ -216,7 +226,9 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
   ];
 
   return (
-    <div className="relative">
+    <>
+      {ConfirmDialog}
+      <div className="relative">
       {/* Кнопка меню */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -546,5 +558,6 @@ export default function EmailListMenu({ labels, onLabelUpdate }: EmailListMenuPr
         </div>
       )}
     </div>
+    </>
   );
 }
