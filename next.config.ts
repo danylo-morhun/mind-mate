@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
+  // Enable standalone output for Docker
+  output: 'standalone',
+  
   // Environment variables that should be available on the client
   env: {
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Mind Mate',
