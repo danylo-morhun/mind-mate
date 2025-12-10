@@ -20,6 +20,12 @@ COPY . .
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Set build phase to skip runtime checks during build
+ENV NEXT_PHASE=phase-production-build
+# Provide dummy values for build (will be replaced at runtime)
+ENV NEXTAUTH_SECRET=build-time-dummy-secret
+ENV GOOGLE_CLIENT_ID=build-time-dummy-client-id
+ENV GOOGLE_CLIENT_SECRET=build-time-dummy-client-secret
 
 # Build the application
 RUN npm run build

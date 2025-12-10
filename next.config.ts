@@ -3,7 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Production optimizations
   reactStrictMode: true,
-  swcMinify: true,
   
   // Enable standalone output for Docker
   output: 'standalone',
